@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BoardMate - Boardgame Reservation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Side Menu -->
+  <aside id="sideMenu" class="side-menu">
+    <div class="side-menu__header">
+      <div class="brand-pill">
+        <span class="brand-dot brand-dot--amber"></span>
+        <span class="brand-dot brand-dot--teal"></span>
+        <span class="brand-dot brand-dot--red"></span>
+      </div>
+      <h2 class="side-title">BoardMate</h2>
+      <button class="close-btn" onclick="toggleMenu(false)">×</button>
+    </div>
+    <nav class="side-menu__nav">
+      <button class="side-link" onclick="showPage('home')">Home</button>
+      <button class="side-link" onclick="showPage('my-booking')">Your Booking</button>
+      <button class="side-link" onclick="showPage('favorites')">Favorite Game</button>
+      <button class="side-link" onclick="showPage('settings')">Setting</button>
+      <button class="side-link" onclick="showPage('profile')">Profile</button>
+    </nav>
+    <div class="side-menu__footer">
+      <button class="logout-btn" onclick="showPage('auth'); showAuth('choice')">Logout</button>
+    </div>
+  </aside>
+  <div id="overlay" class="overlay" onclick="toggleMenu(false)"></div>
+
+  <!-- Top Bar -->
+  <header id="topBar" class="top-bar">
+    <button class="icon-btn" onclick="toggleMenu(true)">☰</button>
+    <h1 id="pageTitle" class="top-bar__title">BoardMate</h1>
+    <button class="icon-btn" onclick="showPage('profile')">👤</button>
+  </header>
+
+  <main class="app-container">
+
+    <!-- AUTH -->
+    <section id="auth" class="page page--active">
+      <div class="auth-shell">
+        <!-- hero ด้านซ้าย -->
+        <div class="auth-hero">
+          <div class="auth-badge">Board Game Hub</div>
+          <h2>Welcome to BoardMate</h2>
+          <p>Play, book, and enjoy your favorite games</p>
+          <div class="hero-img hero-img--board"></div>
+        </div>
+
+        <!-- 1) หน้าเลือก -->
+        <div id="authChoice" class="auth-card">
+          <h3>Get Started</h3>
+          <p class="muted">Choose an option to continue</p>
+          <button class="btn btn-primary btn-full" onclick="showAuth('login')">Login</button>
+          <button class="btn btn-secondary btn-full" onclick="showAuth('signup')">Sign Up</button>
+        </div>
+
+        <!-- 2) หน้า Login -->
+        <div id="loginBox" class="auth-card hidden">
+          <h3>Login</h3>
+          <form id="loginForm" class="form-block">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="Enter email" required>
+
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Enter password" required>
+
+            <button type="submit" class="btn btn-primary btn-full">Login</button>
+          </form>
+          <p class="muted small-text">
+            Don’t have an account? <a href="#" onclick="showAuth('signup')">Sign up</a>
+          </p>
+          <button class="btn btn-light btn-full" onclick="showAuth('choice')">Back</button>
+        </div>
+
+        <!-- 3) หน้า Sign up -->
+        <div id="signupBox" class="auth-card hidden">
+          <h3>Create Account</h3>
+          <form id="signupForm" class="form-block">
+            <label>Full name</label>
+            <input type="text" name="full_name" placeholder="Your name" required>
+
+            <label>Email</label>
+            <input type="email" name="email" placeholder="you@example.com" required>
+
+            <label>Password</label>
+            <input type="password" name="password" placeholder="At least 6 characters" required>
+
+            <button type="submit" class="btn btn-primary btn-full">Sign Up</button>
+          </form>
+          <p class="muted small-text">
+            Already have an account? <a href="#" onclick="showAuth('login')">Login</a>
+          </p>
+          <button class="btn btn-light btn-full" onclick="showAuth('choice')">Back</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOME -->
+    <section id="home" class="page">
+      <div class="home-hero">
+        <div>
+          <p class="hero-badge">Today’s picks</p>
+          <h2 class="hero-title">Find your boardgame table.</h2>
+          <p class="muted">Choose room • Select game • Pay • Play</p>
+        </div>
+        <div class="hero-img hero-img--home"></div>
+      </div>
+
+      <div class="section-spacing">
+        <div class="search-box">
+          <span class="search-icon">🔎</span>
+          <input type="text" id="searchInput" placeholder="Search boardgame...">
+        </div>
+
+        <h3 class="section-title">Recommended</h3>
+        <div id="recommendedList" class="horizontal-scroll"></div>
+
+        <h3 class="section-title">Popular Games</h3>
+        <div id="popularList" class="card-grid card-grid--auto"></div>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="btn btn-primary btn-full" onclick="showPage('room-booking')">Start Booking</button>
+      </div>
+    </section>
+
+    <!-- ROOM BOOKING -->
+    <section id="room-booking" class="page">
+      <div class="page-header">
+        <h2>Room Booking</h2>
+        <p class="muted">Select the room that fits your players.</p>
+      </div>
+      <div class="section-spacing section-spacing--nobot">
+        <label class="field-label">Number of players</label>
+        <input type="number" id="playerCount" class="input" placeholder="e.g. 4">
+        <h3 class="section-title">Available Rooms</h3>
+        <div id="roomList" class="vertical-list"></div>
+      </div>
+    </section>
+
+    <!-- TIME SELECT -->
+    <section id="time-select" class="page">
+      <div class="page-header">
+        <h2>Choose time</h2>
+        <p class="muted">Select date and time for your booking.</p>
+      </div>
+      <div class="section-spacing">
+        <label class="field-label">Date</label>
+        <input type="date" id="bookingDate" class="input">
+
+        <div class="time-slot-panel">
+          <h4>Available slots</h4>
+          <div id="timeSlotGrid" class="time-slot-grid">
+            <!-- JS จะใส่ปุ่มให้ -->
+          </div>
+        </div>
+
+        <div class="time-grid">
+          <div>
+            <label class="field-label">Start time</label>
+            <select id="startTime" class="input"></select>
+          </div>
+          <div>
+            <label class="field-label">End time</label>
+            <select id="endTime" class="input"></select>
+          </div>
+        </div>
+
+        <p class="muted small-text" id="timeSummary">Duration: -</p>
+
+        <button class="btn btn-primary btn-full" onclick="confirmTime()">Continue</button>
+        <button class="btn btn-light btn-full" onclick="showPage('room-booking')">Back</button>
+      </div>
+    </section>
+
+    <!-- GAME SELECT -->
+    <section id="game-select" class="page">
+      <div class="page-header">
+        <h2>Select Game</h2>
+        <p class="muted">Choose the boardgame you want to play.</p>
+      </div>
+      <div class="section-spacing" id="gameList"></div>
+    </section>
+
+    <!-- PAYMENT -->
+    <section id="payment" class="page">
+      <div class="page-header">
+        <h2>Payment Summary</h2>
+        <p class="muted">Check your booking details</p>
+      </div>
+      <div class="section-spacing">
+        <div class="summary-box">
+          <div class="summary-row">
+            <span>Room</span>
+            <strong id="summaryRoom">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>Game</span>
+            <strong id="summaryGame">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>Date</span>
+            <strong id="summaryDate">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>Time</span>
+            <strong id="summaryTime">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>Duration</span>
+            <strong id="summaryDuration">-</strong>
+          </div>
+          <div class="summary-row summary-row--total">
+            <span>Total</span>
+            <strong id="summaryTotal">0 THB</strong>
+          </div>
+        </div>
+
+        <h3 class="section-title mt-16">Payment method</h3>
+        <label class="pay-option">
+          <input type="radio" name="payment_method" value="qr" checked>
+          <span>QR Code</span>
+        </label>
+        <label class="pay-option">
+          <input type="radio" name="payment_method" value="card">
+          <span>Credit / Debit Card</span>
+        </label>
+
+        <div class="qr-area">
+          <div class="qr-frame">
+            <div class="qr-square"></div>
+          </div>
+          <p class="muted">Scan this QR to pay</p>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="confirmPayment()">Confirm payment</button>
+      </div>
+    </section>
+
+    <!-- PAYMENT SUCCESS -->
+    <section id="payment-success" class="page">
+      <div class="center-box">
+        <div class="success-circle">✓</div>
+        <h2>Payment successful</h2>
+        <p class="muted">Your booking has been confirmed.</p>
+        <button class="btn btn-primary" onclick="showPage('review')">Rate experience</button>
+        <button class="btn btn-light" onclick="showPage('home')">Back to home</button>
+      </div>
+    </section>
+
+    <!-- REVIEW -->
+    <section id="review" class="page">
+      <div class="page-header">
+        <h2>How was your experience?</h2>
+        <p class="muted">Give rating & comment</p>
+      </div>
+      <div class="section-spacing">
+        <div id="starRow" class="star-row">
+          <span data-rate="1">★</span>
+          <span data-rate="2">★</span>
+          <span data-rate="3">★</span>
+          <span data-rate="4">★</span>
+          <span data-rate="5">★</span>
+        </div>
+        <label class="field-label">Comment</label>
+        <textarea id="commentBox" rows="4" class="input" placeholder="Write your feedback..."></textarea>
+        <button class="btn btn-primary" onclick="submitReview()">Submit</button>
+      </div>
+    </section>
+
+    <!-- MY BOOKING -->
+    <section id="my-booking" class="page">
+      <div class="page-header">
+        <h2>Your booking</h2>
+        <p class="muted">Check your current booking</p>
+      </div>
+      <div class="section-spacing">
+        <div class="booking-card">
+          <div class="booking-card__img"></div>
+          <div class="booking-card__body">
+            <h3 id="myBookingRoom">-</h3>
+            <p class="muted" id="myBookingGame">-</p>
+            <span class="status-pill status-pill--success">Paid</span>
+          </div>
+          <div class="booking-card__actions">
+            <button class="btn btn-secondary" onclick="toggleQR(true)">Show QR</button>
+            <button class="btn btn-danger">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div id="qrModal" class="qr-modal">
+        <div class="qr-modal__content">
+          <div class="qr-frame qr-frame--green">
+            <div class="qr-square"></div>
+          </div>
+          <button class="btn btn-light" onclick="toggleQR(false)">Close</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAVORITES -->
+    <section id="favorites" class="page">
+      <div class="page-header">
+        <h2>Favorite games</h2>
+        <p class="muted">Your saved boardgames</p>
+      </div>
+      <div class="section-spacing">
+        <p class="muted">No favorite yet.</p>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section id="profile" class="page">
+      <div class="page-header">
+        <h2>Profile</h2>
+      </div>
+      <div class="section-spacing">
+        <div class="avatar-placeholder"></div>
+        <form class="form-block mt-16">
+          <label>Username</label>
+          <input type="text" class="input" placeholder="username">
+          <label>Email</label>
+          <input type="email" class="input" placeholder="email">
+          <label>Password</label>
+          <input type="password" class="input" placeholder="new password">
+          <button class="btn btn-primary">Update</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settings" class="page">
+      <div class="page-header">
+        <h2>Settings</h2>
+      </div>
+      <div class="section-spacing">
+        <label class="toggle-row">
+          <span>Dark mode</span>
+          <input type="checkbox">
+        </label>
+        <label class="toggle-row">
+          <span>Notification</span>
+          <input type="checkbox" checked>
+        </label>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast notification container -->
+  <div id="toastContainer"></div>
+
+  <script src="script.js"></script>
+
+</body>
+
+</html>
