@@ -281,15 +281,19 @@ async function renderGames() {
 async function selectGameFromDB(gameId, gameName) {
   selectedGame = { id: gameId, title: gameName };
 
-  if (window.currentBookingId) {
+  // ถ้ายังไม่มี booking -> สร้างตอนนี้ (หลังเลือกเกม)
+  if (!window.currentBookingId) {
+    const ok = await createBookingOnServer();
+    if (!ok) {
+      showToast("Cannot create booking", "error");
+      return;
+    }
+  } else {
+    // ถ้ามี booking_id อยู่แล้ว (เช่น เคยสร้างผิด flow มาก่อน)
     const fd = new FormData();
     fd.append("booking_id", window.currentBookingId);
     fd.append("game_id", gameId);
-
-    await fetch("set_booking_game.php", {
-      method: "POST",
-      body: fd
-    });
+    await fetch("set_booking_game.php", { method: "POST", body: fd });
   }
 
   // อัปเดตสรุป
@@ -306,6 +310,7 @@ async function selectGameFromDB(gameId, gameName) {
   document.getElementById("summaryTotal").textContent = total + " THB";
   window.currentTotalAmount = total;
 
+  // ไปหน้า Payment
   showPage("payment");
 }
 
@@ -402,15 +407,44 @@ function updateDurationPreview() {
   }
 }
 
-// ========== สร้าง booking ใน DB ==========
-// เรียก backend เพื่อสร้าง booking จริง
+// ========== สร้าง booking ใน DB (หลังเลือกเกม) ==========
 async function createBookingOnServer() {
+  // ตรวจสอบว่าเลือกครบแล้ว
+  if (!window.currentUserId) {
+    showToast("กรุณาเข้าสู่ระบบก่อน", "error");
+    return false;
+  }
+  if (!selectedRoom || !selectedRoom.id) {
+    showToast("กรุณาเลือกห้อง", "error");
+    return false;
+  }
+  if (!selectedDate || !selectedStartTime || !selectedEndTime) {
+    showToast("กรุณาเลือกวันและเวลา", "error");
+    return false;
+  }
+  if (!selectedGame || !selectedGame.id) {
+    showToast("กรุณาเลือกบอร์ดเกม", "error");
+    return false;
+  }
+
+  // แปลงเวลาให้เป็น HH:MM:SS
+  const toHMS = (t) => (t && t.length === 5 ? `${t}:00` : t);
+  const start_hms = toHMS(selectedStartTime);
+  const end_hms   = toHMS(selectedEndTime);
+
+  // กัน user เลือกเวลาผิด
+  if (!start_hms || !end_hms || start_hms >= end_hms) {
+    showToast("เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด", "error");
+    return false;
+  }
+
   const fd = new FormData();
-  fd.append("user_id", window.currentUserId);
-  fd.append("room_id", selectedRoom.id);
-  fd.append("booking_date", selectedDate);
-  fd.append("start_time", selectedStartTime);
-  fd.append("end_time", selectedEndTime);
+  fd.append("user_id", String(window.currentUserId));
+  fd.append("room_id", String(selectedRoom.id));
+  fd.append("booking_date", selectedDate);   // YYYY-MM-DD
+  fd.append("start_time", start_hms);        // HH:MM:SS
+  fd.append("end_time", end_hms);            // HH:MM:SS
+  fd.append("game_id", String(selectedGame.id)); // ✅ เพิ่มเกมเข้าไปด้วย
 
   try {
     const res = await fetch("create_booking.php", {
@@ -418,23 +452,40 @@ async function createBookingOnServer() {
       body: fd
     });
 
-    // กันกรณี PHP พ่นข้อความดิบ เช่น "Cannot create booking"
-    let data = null;
+    // พยายาม parse เป็น JSON
+    let data;
     try {
       data = await res.json();
-    } catch (e) {
-      // ถ้า parse ไม่ได้ แสดง error แล้วบอกว่าไม่สำเร็จ
+    } catch {
       showToast("Server response invalid", "error");
       return false;
     }
 
-    if (res.ok && data.status === "OK") {
-      window.currentBookingId = data.booking_id;
+    // รองรับได้ทั้งรูปแบบใหม่และเก่า
+    const ok =
+      (data && data.success === true) ||
+      (data && data.status === "OK");
+
+    if (res.ok && ok) {
+      const bookingId =
+        data.booking_id ||
+        data.bookingId ||
+        data.id;
+
+      if (bookingId) {
+        window.currentBookingId = bookingId;
+      }
+
       showToast("Booking successful!", "success");
-      return true; // ✅ บอกว่า success
+      return true;
     } else {
-      showToast(data.message || "Cannot create booking", "error");
-      return false; // ❌ บอกว่า fail
+      // แสดงข้อความจาก backend ถ้ามี
+      const msg =
+        data?.error ||
+        data?.message ||
+        "Cannot create booking";
+      showToast(msg, "error");
+      return false;
     }
   } catch (err) {
     console.error(err);
@@ -498,12 +549,6 @@ async function confirmTime() {
     showToast("Please select valid start and end time", "error");
     return;
   }
-
-  // พยายามสร้าง booking ใน server ก่อน
-  const ok = await createBookingOnServer();
-
-  // ถ้าสร้างไม่สำเร็จ → จบเลย อย่าเปลี่ยนหน้า
-  if (!ok) return;
 
   // ถ้าสำเร็จ → ไปหน้าเลือกเกม
   showPage("game-select");
