@@ -1,87 +1,47 @@
 <?php
-require 'config.php';
-header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__.'/config.php';
 
-$user_id      = $_POST['user_id'] ?? null;
-$room_id      = $_POST['room_id'] ?? null;
-$booking_date = $_POST['booking_date'] ?? null;
-$start_time   = $_POST['start_time'] ?? null;
-$end_time     = $_POST['end_time'] ?? null;
+$user_id      = $_POST['user_id']      ?? null;
+$room_id      = $_POST['room_id']      ?? null;
+$booking_date = $_POST['booking_date'] ?? null; // YYYY-MM-DD
+$start_time   = $_POST['start_time']   ?? null; // HH:MM:SS
+$end_time     = $_POST['end_time']     ?? null; // HH:MM:SS
+$game_id      = $_POST['game_id']      ?? null;
 
-if (!$user_id || !$room_id || !$booking_date || !$start_time || !$end_time) {
-    http_response_code(400);
-    echo json_encode([
-        "status" => "ERROR",
-        "message" => "Missing fields"
-    ]);
-    exit;
+if (!$user_id || !$room_id || !$booking_date || !$start_time || !$end_time || !$game_id) {
+  echo json_encode(['success'=>false,'error'=>'missing_fields_or_game_id']); exit;
+}
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$booking_date) ||
+    !preg_match('/^\d{2}:\d{2}:\d{2}$/',$start_time) ||
+    !preg_match('/^\d{2}:\d{2}:\d{2}$/',$end_time)) {
+  echo json_encode(['success'=>false,'error'=>'invalid_date_or_time_format']); exit;
+}
+if (strtotime($start_time) >= strtotime($end_time)) {
+  echo json_encode(['success'=>false,'error'=>'start_must_be_before_end']); exit;
 }
 
 try {
-    // เช็กว่าช่วงเวลานี้ซ้อนกับการจองอื่นในวันเดียวกันและห้องเดียวกันไหม
-    // เงื่อนไขนี้จะ "อนุญาตให้ขอบเวลาแตะกันพอดี" เช่น 10-11 แล้วจอง 11-12
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM booking
-        WHERE room_id = ?
-          AND booking_date = ?
-          AND status <> 'cancelled'
-          -- ซ้อนจริงๆ เท่านั้น
-          AND ( ? < end_time AND ? > start_time )
-          -- แต่ถ้าแตะขอบพอดี (new_start == end_time หรือ new_end == start_time) ให้ผ่าน
-          AND NOT ( ? = end_time OR ? = start_time )
-    ");
-    $stmt->execute([
-        $room_id,
-        $booking_date,
-        $start_time,   // สำหรับ ? < end_time
-        $end_time,     // สำหรับ ? > start_time
-        $start_time,   // สำหรับ NOT ( new_start = end_time )
-        $end_time      // สำหรับ NOT ( new_end = start_time )
-    ]);
-    $conflict = $stmt->fetchColumn();
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        "status" => "ERROR",
-        "message" => "DB error: " . $e->getMessage()
-    ]);
-    exit;
-}
+  $pdo->beginTransaction();
 
-if ($conflict > 0) {
-    http_response_code(409);
-    echo json_encode([
-        "status" => "ERROR",
-        "message" => "This slot is already booked."
-    ]);
-    exit;
-}
+  // CALL create_booking(...) และอ่าน booking_id
+  $stmt = $pdo->prepare("CALL create_booking(?, ?, ?, ?, ?, ?)");
+  $stmt->execute([$user_id, $room_id, $booking_date, $start_time, $end_time, $game_id]);
 
-// ไม่ชน → insert ได้
-try {
-    $stmt = $pdo->prepare("
-        INSERT INTO booking (user_id, room_id, booking_date, start_time, end_time, status)
-        VALUES (?, ?, ?, ?, ?, 'unpaid')
-    ");
-    $stmt->execute([
-        $user_id,
-        $room_id,
-        $booking_date,
-        $start_time,
-        $end_time
-    ]);
+  // NOTE: MySQL + PDO จะมี result set ของ SELECT LAST_INSERT_ID()
+  $row = $stmt->fetch();              // fetch แถวแรก { booking_id: ... }
+  $booking_id = $row['booking_id'] ?? null;
 
-    $newId = $pdo->lastInsertId();
+  // consume result sets ที่เหลือ (ป้องกัน "commands out of sync")
+  while ($stmt->nextRowset()) { /* no-op */ }
+  $stmt->closeCursor();
 
-    echo json_encode([
-        "status" => "OK",
-        "booking_id" => (int)$newId
-    ]);
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        "status" => "ERROR",
-        "message" => "Insert failed: " . $e->getMessage()
-    ]);
+  if (!$booking_id) {
+    throw new RuntimeException('cannot_get_booking_id');
+  }
+
+  $pdo->commit();
+  echo json_encode(['success'=>true, 'booking_id'=>(int)$booking_id]);
+} catch (Throwable $e) {
+  if ($pdo->inTransaction()) $pdo->rollBack();
+  echo json_encode(['success'=>false, 'error'=>$e->getMessage()]);
 }

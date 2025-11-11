@@ -14,6 +14,18 @@ window.currentBookingId = null;
 window.currentUserId = null;
 window.currentTotalAmount = 0;
 
+function resetBookingState() {
+  window.currentBookingId = null;
+  window.currentTotalAmount = 0;
+
+  selectedRoom = null;
+  selectedGame = null;
+  selectedDate = null;
+  selectedStartTime = null;
+  selectedEndTime = null;
+  selectedDurationHours = 0;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   // เริ่มที่หน้า auth
   showPage("auth");
@@ -50,6 +62,7 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
+
 // =================== PAGE NAV ===================
 function showPage(id) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("page--active"));
@@ -68,7 +81,17 @@ function showPage(id) {
     pageTitle.textContent = mapTitle(id);
   }
 
+  if (id === "room-booking") {
+    resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
+  }
+
   toggleMenu(false);
+}
+
+// เริ่มจองใหม่จากหน้า Home (เรียกจากปุ่ม)
+function startBooking() {
+  resetBookingState();          // ล้าง state รอบก่อน
+  showPage("room-booking");     // ไปหน้าเลือกห้อง
 }
 
 function mapTitle(id) {
@@ -251,6 +274,7 @@ async function renderRooms() {
 }
 
 function selectRoomFromDB(roomId, price, name) {
+  resetBookingState(); // ✅ ล้างก่อนเริ่มจองรอบใหม่
   selectedRoom = { id: roomId, price: price, name: name };
   showPage("time-select");
   updateDurationPreview();
@@ -281,19 +305,13 @@ async function renderGames() {
 async function selectGameFromDB(gameId, gameName) {
   selectedGame = { id: gameId, title: gameName };
 
-  // ถ้ายังไม่มี booking -> สร้างตอนนี้ (หลังเลือกเกม)
-  if (!window.currentBookingId) {
-    const ok = await createBookingOnServer();
-    if (!ok) {
-      showToast("Cannot create booking", "error");
-      return;
-    }
-  } else {
-    // ถ้ามี booking_id อยู่แล้ว (เช่น เคยสร้างผิด flow มาก่อน)
-    const fd = new FormData();
-    fd.append("booking_id", window.currentBookingId);
-    fd.append("game_id", gameId);
-    await fetch("set_booking_game.php", { method: "POST", body: fd });
+  // ✅ บังคับให้รอบนี้เป็นบิลใหม่เสมอ
+  window.currentBookingId = null;
+
+  const ok = await createBookingOnServer();   // ส่ง game_id ไปด้วย
+  if (!ok) {
+    showToast("Cannot create booking", "error");
+    return;
   }
 
   // อัปเดตสรุป

@@ -25,9 +25,20 @@ DELIMITER $$
 --
 -- Procedures
 --
-CREATE DEFINER=`root`@`localhost` PROCEDURE `create_booking` (IN `p_user_id` INT, IN `p_room_id` INT, IN `p_booking_date` DATE, IN `p_start` TIME, IN `p_end` TIME)   BEGIN
-    INSERT INTO booking (user_id, room_id, booking_date, start_time, end_time, status)
-    VALUES (p_user_id, p_room_id, p_booking_date, p_start, p_end, 'unpaid');
+CREATE PROCEDURE create_booking(
+  IN p_user_id INT,
+  IN p_room_id INT,
+  IN p_booking_date DATE,
+  IN p_start TIME,
+  IN p_end TIME,
+  IN p_game_id INT
+) BEGIN
+   IF p_game_id IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'game_id required';
+    END IF;
+
+    INSERT INTO booking (user_id, room_id, game_id, booking_date, start_time, end_time, status)
+    VALUES (p_user_id, p_room_id, p_game_id, p_booking_date, p_start, p_end, 'unpaid');
 
     SELECT LAST_INSERT_ID() AS booking_id;
 END$$
@@ -137,6 +148,17 @@ CREATE TRIGGER `trg_booking_no_overlap` BEFORE INSERT ON `booking` FOR EACH ROW 
     END IF;
 END
 $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER trg_booking_require_game
+BEFORE INSERT ON booking
+FOR EACH ROW
+BEGIN
+  IF NEW.game_id IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'game_id required on insert';
+  END IF;
+END$$
 DELIMITER ;
 
 -- --------------------------------------------------------
