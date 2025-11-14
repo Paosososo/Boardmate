@@ -250,6 +250,46 @@
       </div>
       <div class="section-spacing" id="gameList"></div>
     </section>
+    
+    <!-- GAME DETAIL -->
+    <section id="game-detail" class="page">
+      <div class="page-header">
+        <h2 id="detailGameName">Game name</h2>
+        <p class="muted">Game overview</p>
+      </div>
+
+      <div class="section-spacing">
+        <div class="game-detail-shell">
+          <div class="game-detail-media">
+            <div id="detailGameImage" class="game-detail-img"></div>
+          </div>
+
+          <div class="game-detail-meta">
+            <div class="game-detail-pill-row">
+              <span class="tag" id="detailGameGenre">Genre</span>
+              <span class="tag" id="detailGamePlayers">2–4 players</span>
+            </div>
+            <p class="muted small-text">
+              This game is available in BoardMate. You can pick it when booking a room.
+            </p>
+          </div>
+        </div>
+
+        <div class="game-detail-howto">
+          <h3>How to play</h3>
+          <p id="detailGameHowToPlay" class="muted"></p>
+        </div>
+
+        <div class="game-detail-actions">
+          <button type="button" class="btn btn-light" onclick="showPage('home')">
+            Back to Home
+          </button>
+          <button type="button" class="btn btn-primary" onclick="startBookingFromGameDetail()">
+            Choose this game when booking
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- PAYMENT -->
     <section id="payment" class="page">
