@@ -1,6 +1,6 @@
 :root {
   /* สีหลัก - เน้นแดงตามโลโก้ BoardMate */
-  --primary-red: #fffffff;
+  --primary-red: #e74c3c;
   --primary-dark: #c0392b;
   --accent-yellow: #f39c12;
   --accent-orange: #e67e22;
@@ -670,6 +670,8 @@ select:focus {
   border-radius: 999px;
   height: 48px;
   font-size: 0.95rem;
+  position: relative;
+  z-index: 1;
 }
 
 .search-box input:focus {
@@ -683,6 +685,8 @@ select:focus {
   left: 1rem;
   transform: translateY(-50%);
   font-size: 1.3rem;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* ============ SECTION TITLE ============ */
@@ -1372,4 +1376,18 @@ select:focus {
     height: 80px;
     font-size: 2.5rem;
   }
+}
+.home-visual {
+  margin: 1rem 0 1.5rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  background: #fff;
+}
+
+.home-visual img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  max-height: 260px;
 }
