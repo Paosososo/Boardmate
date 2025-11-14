@@ -140,7 +140,6 @@ CREATE TRIGGER `trg_booking_no_overlap` BEFORE INSERT ON `booking` FOR EACH ROW 
         WHERE room_id = NEW.room_id
           AND booking_date = NEW.booking_date
           AND status <> 'cancelled'
-          AND status = 'paid'
           -- เงื่อนไขซ้อนเวลาแบบอนุญาตให้ต่อหางได้
           AND (NEW.start_time < end_time AND NEW.end_time > start_time)
     ) THEN

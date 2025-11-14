@@ -20,7 +20,6 @@ $stmt = $pdo->prepare("
     WHERE room_id = ?
       AND booking_date = ?
       AND status <> 'cancelled'
-      AND status = 'paid'
 ");
 $stmt->execute([$room_id, $booking_date]);
 $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
