@@ -84,6 +84,9 @@ function showPage(id) {
   if (id === "room-booking") {
     resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
   }
+  if (id === "profile") {
+    loadProfile();
+  }
 
   toggleMenu(false);
 }
@@ -932,5 +935,171 @@ async function handleCancelBooking(bookingId) {
     }
   } catch (err) {
     showToast("Error: " + err.message, "error");
+  }
+}
+
+// =================== PROFILE ===================
+function ensureProfileAccess() {
+  if (!window.currentUserId) {
+    showToast("Please log in first", "error");
+    showPage("auth");
+    return false;
+  }
+  return true;
+}
+
+async function loadProfile() {
+  if (!ensureProfileAccess()) return;
+
+  const nameEl = document.getElementById("profileName");
+  const emailEl = document.getElementById("profileEmail");
+  if (!nameEl || !emailEl) return;
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+
+    const res = await fetch("get_profile.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to load profile");
+    }
+
+    const user = data.user || {};
+    nameEl.textContent = user.full_name || "-";
+    emailEl.textContent = user.email || "-";
+  } catch (err) {
+    console.error("loadProfile error:", err);
+    showToast(err.message || "Failed to load profile", "error");
+  }
+}
+
+async function openEditName() {
+  if (!ensureProfileAccess()) return;
+  const nameEl = document.getElementById("profileName");
+  if (!nameEl) return;
+
+  const currentName = (nameEl.textContent || "").trim();
+  const input = prompt("Enter new name", currentName);
+  if (input === null) return;
+
+  const newName = input.trim();
+  if (!newName) return;
+  if (newName === currentName) {
+    showToast("New name must be different from current name", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("full_name", newName);
+
+    const res = await fetch("update_name.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to update name");
+    }
+
+    nameEl.textContent = data.full_name || newName;
+    showToast("Name updated successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to update name", "error");
+  }
+}
+
+async function openEditEmail() {
+  if (!ensureProfileAccess()) return;
+  const emailEl = document.getElementById("profileEmail");
+  if (!emailEl) return;
+
+  const currentEmail = (emailEl.textContent || "").trim();
+  const input = prompt("Enter new email", currentEmail);
+  if (input === null) return;
+
+  const newEmail = input.trim();
+  if (!newEmail) return;
+  if (newEmail === currentEmail) {
+    showToast("New email must be different from current email", "error");
+    return;
+  }
+
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  if (!emailRegex.test(newEmail)) {
+    showToast("Please enter a valid email address", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("email", newEmail);
+
+    const res = await fetch("update_email.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to update email");
+    }
+
+    emailEl.textContent = data.email || newEmail;
+    showToast("Email updated successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to update email", "error");
+  }
+}
+
+async function openChangePassword() {
+  if (!ensureProfileAccess()) return;
+
+  const oldPassword = prompt("Enter your current password");
+  if (oldPassword === null) return;
+  if (!oldPassword) {
+    showToast("Current password is required", "error");
+    return;
+  }
+
+  const newPassword = prompt("Enter new password");
+  if (newPassword === null) return;
+  if (!newPassword || newPassword.length < 6) {
+    showToast("New password must be at least 6 characters", "error");
+    return;
+  }
+
+  if (newPassword === oldPassword) {
+    showToast("New password must be different from current password", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("old_password", oldPassword);
+    fd.append("new_password", newPassword);
+
+    const res = await fetch("change_password.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to change password");
+    }
+
+    showToast("Password changed successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to change password", "error");
   }
 }

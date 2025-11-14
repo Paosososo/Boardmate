@@ -683,6 +683,43 @@ select:focus {
   background: linear-gradient(140deg, rgba(35, 110, 109, .25), rgba(204, 75, 62, .35));
 }
 
+.profile-block {
+  margin-top: 1rem;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-value {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: .25rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: .25rem .4rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
 /* toggles (fake) */
 .toggle-row {
   display: flex;

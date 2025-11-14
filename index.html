@@ -358,15 +358,36 @@
       </div>
       <div class="section-spacing">
         <div class="avatar-placeholder"></div>
-        <form class="form-block mt-16">
-          <label>Username</label>
-          <input type="text" class="input" placeholder="username">
-          <label>Email</label>
-          <input type="email" class="input" placeholder="email">
-          <label>Password</label>
-          <input type="password" class="input" placeholder="new password">
-          <button class="btn btn-primary">Update</button>
-        </form>
+
+        <div class="profile-block mt-16">
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Username</label>
+              <div id="profileName" class="profile-value">-</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openEditName()">Edit name</button>
+          </div>
+
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Email</label>
+              <div id="profileEmail" class="profile-value">-</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openEditEmail()">Edit email</button>
+          </div>
+
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Password</label>
+              <div class="profile-value">••••••••</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openChangePassword()">Change password</button>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-light mt-24" onclick="showPage('home')">
+          Back to home
+        </button>
       </div>
     </section>
 
