@@ -19,24 +19,43 @@
       <h2 class="side-title">BoardMate</h2>
       <button class="close-btn" onclick="toggleMenu(false)">×</button>
     </div>
+  <!-- Side Menu -->
+  <aside id="sideMenu" class="side-menu">
+    <div class="side-menu__header">
+      <div class="brand-logo">
+        <img src="boardmate_logo_noBG.png" alt="BoardMate">
+      </div>
+      <h2 class="side-title">BoardMate</h2>
+      <button class="close-btn" onclick="toggleMenu(false)">×</button>
+    </div>
+
     <nav class="side-menu__nav">
       <button class="side-link" onclick="showPage('home')">Home</button>
       <button class="side-link" onclick="showPage('my-booking'); loadMyBookings();">Your Booking</button>
       <button class="side-link" onclick="showPage('favorites')">Favorite Game</button>
       <button class="side-link" onclick="showPage('settings')">Setting</button>
       <button class="side-link" onclick="showPage('profile')">Profile</button>
+      <!-- ปุ่มนี้จะแสดงเฉพาะตอนเป็น admin (ให้ JS เอา hidden ออก) -->
+      <button id="adminMenuLink" class="side-link hidden" onclick="openAdminDashboard()">Admin Dashboard</button>
     </nav>
+
     <div class="side-menu__footer">
-      <button class="logout-btn" onclick="logoutUser()">Logout</button>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
     </div>
   </aside>
+
+  <div id="overlay" class="overlay" onclick="toggleMenu(false)"></div>
+
   <div id="overlay" class="overlay" onclick="toggleMenu(false)"></div>
 
   <!-- Top Bar -->
   <header id="topBar" class="top-bar">
     <button class="icon-btn" onclick="toggleMenu(true)">☰</button>
     <h1 id="pageTitle" class="top-bar__title">BoardMate</h1>
-    <button class="icon-btn" onclick="showPage('profile')">👤</button>
+    <div class="top-bar__actions">
+      <span id="adminBadge" class="admin-badge hidden">Admin</span>
+      <button class="icon-btn" onclick="showPage('profile')">👤</button>
+    </div>
   </header>
 
   <main class="app-container">
@@ -96,10 +115,46 @@
 
             <button type="submit" class="btn btn-primary btn-full">Sign Up</button>
           </form>
+          <p class="muted small-text admin-register-link">
+            Have an invite code?
+            <button type="button" class="link-btn" onclick="showAdminRegister()">Admin register</button>
+          </p>
           <p class="muted small-text">
             Already have an account? <a href="#" onclick="showAuth('login')">Login</a>
           </p>
           <button class="btn btn-light btn-full" onclick="showAuth('choice')">Back</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN REGISTER -->
+    <section id="admin-register" class="page">
+      <div class="auth-shell">
+        <div class="auth-hero admin-register-hero">
+          <div class="auth-badge">Invite only</div>
+          <h2>Become a BoardMate admin</h2>
+          <p>Unlock management tools with your invite code.</p>
+          <div class="hero-img hero-img--board"></div>
+        </div>
+        <div class="auth-card">
+          <h3>Admin registration</h3>
+          <p class="muted small-text">Enter your invite code to continue</p>
+          <form id="adminRegisterForm" class="form-block">
+            <label>Full name</label>
+            <input type="text" name="full_name" placeholder="Your name" required>
+
+            <label>Email</label>
+            <input type="email" name="email" placeholder="admin@boardmate.com" required>
+
+            <label>Password</label>
+            <input type="password" name="password" placeholder="At least 6 characters" required>
+
+            <label>Admin invite code</label>
+            <input type="text" name="admin_invite_code" placeholder="BOARDMATE-XXXX" required>
+
+            <button type="submit" class="btn btn-primary btn-full">Register as admin</button>
+          </form>
+          <button type="button" class="btn btn-light btn-full" onclick="returnToAuth()">Back to login</button>
         </div>
       </div>
     </section>
@@ -404,36 +459,15 @@
       </div>
       <div class="section-spacing">
         <div class="avatar-placeholder"></div>
-
-        <div class="profile-block mt-16">
-          <div class="profile-row">
-            <div>
-              <label class="field-label">Username</label>
-              <div id="profileName" class="profile-value">-</div>
-            </div>
-            <button type="button" class="btn-link" onclick="openEditName()">Edit name</button>
-          </div>
-
-          <div class="profile-row">
-            <div>
-              <label class="field-label">Email</label>
-              <div id="profileEmail" class="profile-value">-</div>
-            </div>
-            <button type="button" class="btn-link" onclick="openEditEmail()">Edit email</button>
-          </div>
-
-          <div class="profile-row">
-            <div>
-              <label class="field-label">Password</label>
-              <div class="profile-value">••••••••</div>
-            </div>
-            <button type="button" class="btn-link" onclick="openChangePassword()">Change password</button>
-          </div>
-        </div>
-
-        <button type="button" class="btn btn-light mt-24" onclick="showPage('home')">
-          Back to home
-        </button>
+        <form class="form-block mt-16">
+          <label>Username</label>
+          <input type="text" class="input" placeholder="username">
+          <label>Email</label>
+          <input type="email" class="input" placeholder="email">
+          <label>Password</label>
+          <input type="password" class="input" placeholder="new password">
+          <button class="btn btn-primary">Update</button>
+        </form>
       </div>
     </section>
 
@@ -451,6 +485,55 @@
           <span>Notification</span>
           <input type="checkbox" checked>
         </label>
+      </div>
+    </section>
+
+    <!-- ADMIN DASHBOARD -->
+    <section id="admin-dashboard" class="page">
+      <div class="page-header admin-header">
+        <div>
+          <h2>Admin dashboard</h2>
+          <p class="muted">Manage bookings, rooms, and boardgames</p>
+        </div>
+        <span class="badge-soft">Admin tools</span>
+      </div>
+
+      <div class="admin-section">
+        <div class="admin-section__head">
+          <h3>Bookings overview</h3>
+          <button class="btn btn-light" onclick="adminLoadBookings()">Refresh</button>
+        </div>
+        <div id="adminBookingsList" class="admin-card-list"></div>
+        <div id="adminBookingsEmpty" class="muted center-text">No booking data</div>
+      </div>
+
+      <div class="admin-section">
+        <div class="admin-section__head">
+          <h3>Rooms management</h3>
+          <button class="btn btn-light" onclick="adminLoadRooms()">Refresh</button>
+        </div>
+        <div id="adminRoomsList" class="admin-card-grid"></div>
+        <div id="adminRoomsEmpty" class="muted center-text">No rooms found</div>
+      </div>
+
+      <div class="admin-section">
+        <div class="admin-section__head">
+          <h3>Boardgames management</h3>
+          <button class="btn btn-light" onclick="adminLoadBoardgames()">Refresh</button>
+        </div>
+        <form id="adminBoardgameForm" class="admin-boardgame-form">
+          <input type="text" name="game_name" placeholder="Game name" required>
+          <input type="text" name="genre" placeholder="Genre">
+          <input type="number" name="players_min" placeholder="Min players" min="1" value="2" required>
+          <input type="number" name="players_max" placeholder="Max players" min="1" value="4" required>
+          <select name="is_active">
+            <option value="1" selected>Active</option>
+            <option value="0">Inactive</option>
+          </select>
+          <button type="submit" class="btn btn-primary">Add boardgame</button>
+        </form>
+        <div id="adminBoardgamesList" class="admin-card-list"></div>
+        <div id="adminBoardgamesEmpty" class="muted center-text">No boardgames yet</div>
       </div>
     </section>
 
