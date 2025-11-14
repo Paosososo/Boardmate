@@ -1,44 +1,47 @@
 <?php
-// login.php
 require 'config.php';
 
-$email    = $_POST['email'] ?? '';
+header('Content-Type: application/json');
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function respond(int $code, array $payload): void {
+    http_response_code($code);
+    echo json_encode($payload);
+    exit;
+}
+
+$email    = trim($_POST['email'] ?? '');
 $password = $_POST['password'] ?? '';
 
-if (!$email || !$password) {
-    http_response_code(400);
-    echo "Missing email or password";
-    exit;
+if ($email === '' || $password === '') {
+    respond(400, ["success" => false, "error" => "Missing email or password"]);
 }
 
-$stmt = $pdo->prepare("SELECT user_id, full_name, email, password, role FROM user WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare('SELECT user_id, full_name, email, password, role FROM user WHERE email = ?');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$user) {
-    http_response_code(401);
-    echo "User not found";
-    exit;
+    if (!$user || !password_verify($password, $user['password'])) {
+        respond(401, ["success" => false, "error" => "Invalid email or password"]);
+    }
+
+    $_SESSION['user_id'] = (int)$user['user_id'];
+    $_SESSION['role']    = $user['role'];
+
+    respond(200, [
+        "success" => true,
+        "user" => [
+            "id" => (int)$user['user_id'],
+            "name" => $user['full_name'],
+            "full_name" => $user['full_name'],
+            "email" => $user['email'],
+            "role" => $user['role']
+        ]
+    ]);
+} catch (PDOException $e) {
+    respond(500, ["success" => false, "error" => "Login failed"]);
 }
-
-// ตรวจสอบรหัสผ่าน
-if (!password_verify($password, $user['password'])) {
-    http_response_code(401);
-    echo "Wrong password";
-    exit;
-}
-
-// ตั้ง session
-session_start();
-$_SESSION['user_id'] = $user['user_id'];
-$_SESSION['role']    = $user['role'];
-
-header('Content-Type: application/json');
-echo json_encode([
-    "status" => "OK",
-    "user" => [
-        "id"   => $user['user_id'],
-        "name" => $user['full_name'],
-        "role" => $user['role']
-    ]
-]);

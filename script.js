@@ -36,6 +36,14 @@ function getGameImagePath(gameName) {
   return `games/${filename}.jpg`;
 }
 
+function escapeHTML(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/[&<>"']/g, (char) => {
+    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+    return map[char] || char;
+  });
+}
+
 function updateTopBarTransparency() {
   const topBar = document.getElementById("topBar");
   if (!topBar) return;
@@ -86,6 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // เตรียม time select dropdown
   initTimeSelect();
   initTopBarTransparency();
+  toggleSummaryPaymentMethod('qr');
+  toggleModalPaymentMethod('qr');
+  restoreSessionUser();
 });
 
 // Toast Notification System
@@ -105,6 +116,32 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
+async function requestJSON(url, options = {}) {
+  const { expectSuccess = false, ...fetchOptions } = options;
+  const response = await fetch(url, fetchOptions);
+  const raw = await response.text();
+  let data = null;
+
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch (err) {
+      throw new Error("Invalid server response");
+    }
+  }
+
+  if (!response.ok) {
+    const message = data && (data.error || data.message);
+    throw new Error(message || `HTTP ${response.status}`);
+  }
+
+  if (expectSuccess && data && data.success === false) {
+    throw new Error(data.error || "Request failed");
+  }
+
+  return data;
+}
+
 
 // =================== PAGE NAV ===================
 function showPage(id) {
@@ -118,35 +155,22 @@ function showPage(id) {
   } else {
     topBar.style.display = "flex";
   }
-  updateTopBarTransparency();
 
   const pageTitle = document.getElementById("pageTitle");
   if (pageTitle) {
     pageTitle.textContent = mapTitle(id);
   }
 
-  if (id === "room-booking") {
-    resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
-  }
   if (id === "profile") {
     loadProfile();
   }
 
-  toggleMenu(false);
-}
-  if (pageTitle) {
-    pageTitle.textContent = mapTitle(id);
-  }
-
-  if (id === "room-booking") {
-    resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
-  }
-
   if (id === "time-select" && typeof loadTimeSlots === "function") {
-    loadTimeSlots();            // โหลด slot ทุกครั้งที่เข้าหน้านี้
+    loadTimeSlots();
   }
 
   toggleMenu(false);
+  updateTopBarTransparency();
 }
 
 // เริ่มจองใหม่จากหน้า Home (เรียกจากปุ่ม)
@@ -214,17 +238,18 @@ function initAuth() {
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(loginForm);
-      const res = await fetch("login.php", {
-        method: "POST",
-        body: formData
-      });
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const data = await requestJSON("login.php", {
+          method: "POST",
+          body: formData,
+          expectSuccess: true
+        });
         window.currentUserId = data.user.id;
-        showToast("Login successful! 🎉", "success");
+        showToast(`Welcome back, ${data.user.name}!`, "success");
         showPage("home");
-      } else {
-        showToast(await res.text(), "error");
+        loadMyBookings();
+      } catch (err) {
+        showToast(err.message, "error");
       }
     });
   }
@@ -234,21 +259,52 @@ function initAuth() {
     signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(signupForm);
-      const res = await fetch("register.php", {
-        method: "POST",
-        body: formData
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.status === "OK") {
-        window.currentUserId = data.user_id;
-        showToast("Register successful! Welcome! 🎉", "success");
+      try {
+        const data = await requestJSON("register.php", {
+          method: "POST",
+          body: formData,
+          expectSuccess: true
+        });
+        window.currentUserId = data.user.id;
+        showToast(`Register successful! Welcome, ${data.user.full_name}! 🎉`, "success");
         showPage("home");
-      } else {
-        showToast(data.message || "Register failed", "error");
+      } catch (err) {
+        showToast(err.message || "Register failed", "error");
       }
     });
+  }
+}
+
+// =================== SESSION HELPERS ===================
+async function restoreSessionUser() {
+  if (window.currentUserId) return;
+  try {
+    const data = await requestJSON("get_profile.php", {
+      method: "POST",
+      expectSuccess: true
+    });
+    if (data && data.user) {
+      window.currentUserId = data.user.user_id;
+      showToast(`Welcome back, ${data.user.full_name}!`, "success");
+      showPage("home");
+      loadMyBookings();
+    }
+  } catch (err) {
+    // Ignore missing session silently
+  }
+}
+
+async function logoutUser() {
+  resetBookingState();
+  window.currentUserId = null;
+  try {
+    await requestJSON("logout.php", { method: "POST", expectSuccess: true });
+    showToast("Logged out successfully");
+  } catch (err) {
+    showToast("Logout error: " + err.message, "error");
+  } finally {
+    showPage("auth");
+    showAuth("choice");
   }
 }
 
@@ -315,8 +371,7 @@ async function renderRooms() {
   if (!wrap) return;
 
   try {
-    const res = await fetch("get_rooms.php");
-    const rooms = await res.json();
+    const rooms = await requestJSON("get_rooms.php");
 
     wrap.innerHTML = "";
     rooms.forEach(r => {
@@ -328,24 +383,32 @@ async function renderRooms() {
       if (r.capacity <= 4) roomEmoji = "🎯";
       else if (r.capacity <= 6) roomEmoji = "🎪";
       else roomEmoji = "🏛️";
+      const roomName = escapeHTML(r.room_name || "Room");
+      const status = escapeHTML(r.status || "unknown");
       
       card.innerHTML = `
         <div class="room-head">
-          <h3>${roomEmoji} ${r.room_name}</h3>
+          <h3>${roomEmoji} ${roomName}</h3>
           <span class="status-pill ${r.status === "available" ? "status-pill--success" : "status-pill--danger"}">
-            ${r.status}
+            ${status}
           </span>
         </div>
         <p class="muted">👥 Capacity: ${r.capacity} players</p>
         <p class="muted">⏰ Available: ${r.time_slot || "-"}</p>
         <p><strong>💰 ${r.price_per_hour} THB / hr</strong></p>
-        <button class="btn btn-primary btn-full" ${r.status !== "available" ? "disabled" : ""} onclick="selectRoomFromDB(${r.room_id}, ${r.price_per_hour}, '${r.room_name}')">Select Room</button>
       `;
+      const btn = document.createElement("button");
+      btn.className = "btn btn-primary btn-full";
+      btn.textContent = "Select Room";
+      btn.disabled = r.status !== "available";
+      btn.addEventListener("click", () => selectRoomFromDB(r.room_id, r.price_per_hour, r.room_name));
+      card.appendChild(btn);
       wrap.appendChild(card);
     });
   } catch (err) {
     console.error(err);
     wrap.innerHTML = "<p class='muted'>Cannot load rooms</p>";
+    showToast("Cannot load rooms: " + err.message, "error");
   }
 }
 
@@ -362,8 +425,7 @@ async function renderGames() {
   if (!wrap) return;
 
   try {
-    const res = await fetch("get_games.php");
-    const games = await res.json();
+    const games = await requestJSON("get_games.php");
 
     wrap.innerHTML = "";
     games.forEach(g => {
@@ -371,17 +433,24 @@ async function renderGames() {
       card.className = "game-card";
       
       const imgPath = getGameImagePath(g.game_name);
+      const safeName = escapeHTML(g.game_name || "Game");
+      const safeGenre = escapeHTML(g.genre || "Board Game");
+      const playerRange = `${g.players_min || "-"}–${g.players_max || "-"}`;
       
       card.innerHTML = `
         <div class="game-img" style="background-image: url('${imgPath}'); background-size: cover; background-position: center;">
         </div>
         <div class="game-info">
-          <h3>${g.game_name}</h3>
-          <p class="muted">🎮 ${g.genre || "Board Game"}</p>
-          <p class="muted">👥 ${g.players_min}–${g.players_max} players</p>
-          <button class="btn btn-primary" onclick="selectGame(${g.game_id}, '${g.game_name}')">Choose</button>
+          <h3>${safeName}</h3>
+          <p class="muted">🎮 ${safeGenre}</p>
+          <p class="muted">👥 ${playerRange} players</p>
         </div>
       `;
+      const btn = document.createElement("button");
+      btn.className = "btn btn-primary";
+      btn.textContent = "Choose";
+      btn.addEventListener("click", () => selectGame(g.game_id, g.game_name));
+      card.querySelector(".game-info").appendChild(btn);
       wrap.appendChild(card);
     });
   } catch (err) {
@@ -536,46 +605,21 @@ async function createBookingOnServer() {
   fd.append("game_id", String(selectedGame.id));
 
   try {
-    const res = await fetch("create_booking.php", {
+    const data = await requestJSON("create_booking.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
 
-    let data;
-    try {
-      data = await res.json();
-    } catch {
-      showToast("Server response invalid", "error");
-      return false;
+    if (data && data.booking_id) {
+      window.currentBookingId = data.booking_id;
     }
 
-    const ok =
-      (data && data.success === true) ||
-      (data && data.status === "OK");
-
-    if (res.ok && ok) {
-      const bookingId =
-        data.booking_id ||
-        data.bookingId ||
-        data.id;
-
-      if (bookingId) {
-        window.currentBookingId = bookingId;
-      }
-
-      showToast("Booking created! 🎉", "success");
-      return true;
-    } else {
-      const msg =
-        data?.error ||
-        data?.message ||
-        "Cannot create booking";
-      showToast(msg, "error");
-      return false;
-    }
+    showToast("Booking created! 🎉", "success");
+    return true;
   } catch (err) {
     console.error(err);
-    showToast("Error connecting to server", "error");
+    showToast(err.message || "Error connecting to server", "error");
     return false;
   }
 }
@@ -591,10 +635,20 @@ async function loadTimeSlots() {
   const chosenDate = dateInput ? dateInput.value : null;
   if (!chosenDate) return;
 
-  const res = await fetch(`get_room_slots.php?room_id=${selectedRoom.id}&booking_date=${chosenDate}`);
-  const slots = await res.json();
-
   const grid = document.getElementById("timeSlotGrid");
+  if (!grid) return;
+
+  let slots = [];
+  try {
+    const params = new URLSearchParams({
+      room_id: selectedRoom.id,
+      booking_date: chosenDate
+    });
+    slots = await requestJSON(`get_room_slots.php?${params.toString()}`);
+  } catch (err) {
+    showToast("Cannot load room slots: " + err.message, "error");
+  }
+
   grid.innerHTML = "";
 
   slots.forEach(slot => {
@@ -637,6 +691,14 @@ async function confirmTime() {
 }
 
 // =================== ยืนยันจ่าย ===================
+async function finalizePaymentRequest(formData) {
+  return requestJSON("finalize_payment.php", {
+    method: "POST",
+    body: formData,
+    expectSuccess: true
+  });
+}
+
 async function confirmPayment() {
   if (!window.currentBookingId) {
     showToast('No current booking to pay', 'error');
@@ -657,8 +719,6 @@ async function confirmPayment() {
     const cvv = document.getElementById('summaryCardCvv')?.value?.trim();
     if (!card || !cvv) {
       showToast('Please enter card number and CVV', 'error');
-    if (!res.ok) {
-      showToast(await res.text(), "error");
       return;
     }
     fd.append('card_number', card);
@@ -666,28 +726,15 @@ async function confirmPayment() {
   }
 
   try {
-    const res = await fetch('finalize_payment.php', { method: 'POST', body: fd });
-    
-    // Ensure response is valid JSON before parsing
-    if (!res.ok && res.status !== 200) {
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `HTTP ${res.status}: Payment failed`);
-      } else {
-        throw new Error(`HTTP ${res.status}: Payment failed`);
-      }
+    await finalizePaymentRequest(fd);
+    showToast('Payment successful!', 'success');
+    if (window.currentUserId) {
+      loadMyBookings();
     }
-    
-    const data = await res.json();
-    if (data && data.success) {
-      showToast('Payment successful!', 'success');
-      // optionally refresh bookings
-      if (window.currentUserId) loadMyBookings();
-      showPage('payment-success');
-    } else {
-      throw new Error((data && data.error) || 'Payment failed');
-    }
+    const paidBookingId = window.currentBookingId;
+    resetBookingState();
+    window.currentBookingId = paidBookingId;
+    showPage('payment-success');
   } catch (err) {
     console.error('Payment error:', err);
     showToast('Payment error: ' + err.message, 'error');
@@ -760,25 +807,20 @@ async function loadMyBookings() {
     const empty = document.getElementById("myBookingEmpty");
     if (list) list.innerHTML = "";
     if (empty) empty.style.display = "block";
-    alert("Please log in to view your bookings");
+    showToast("Please log in to view your bookings", "error");
+    showPage("auth");
+    showAuth("login");
     return;
   }
 
   try {
     const fd = new FormData();
     fd.append("user_id", window.currentUserId);
-    
-    const res = await fetch("get_user_bookings.php", {
+    const data = await requestJSON("get_user_bookings.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-
-    const data = await res.json();
-    
-    if (!data.success) {
-      showToast(data.error || "Failed to load bookings", "error");
-      return;
-    }
 
     const bookings = data.bookings || [];
     const list = document.getElementById("myBookingList");
@@ -820,14 +862,16 @@ function createBookingCard(booking) {
   }
 
   // Format date and time
-  const bookingDate = new Date(booking.booking_date).toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
-  
-  const timeRange = `${booking.start_time} - ${booking.end_time}`;
+  const bookingDate = booking.booking_date
+    ? new Date(booking.booking_date).toLocaleDateString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      })
+    : "-";
+  const formatTime = (val) => (val ? String(val).slice(0, 5) : "-");
+  const timeRange = `${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`;
   // compute total amount if not provided: price_per_hour * duration_hours
   let amount = booking.total_amount;
   if (typeof amount === 'undefined' || amount === null) {
@@ -850,16 +894,23 @@ function createBookingCard(booking) {
     actionsHTML += `<button class="btn btn-danger" onclick="handleCancelBooking(${booking.booking_id})">Cancel</button>`;
   }
 
+  const roomName = escapeHTML(booking.room_name || "Room");
+  const gameName = escapeHTML(booking.game_name || "Game");
+  const statusText = escapeHTML(booking.status || "pending");
+  const formattedAmount = amount
+    ? `฿${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "";
+
   card.innerHTML = `
     <div class="booking-card__img"></div>
     <div class="booking-card__body">
-      <h3>${booking.room_name || "Room"}</h3>
-      <p class="muted">${booking.game_name || "Game"}</p>
+      <h3>${roomName}</h3>
+      <p class="muted">${gameName}</p>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
-        <span class="status-pill ${statusClass}">${booking.status}</span>
+        <span class="status-pill ${statusClass}">${statusText}</span>
         <span class="muted small-text" style="font-size: 0.75rem;">${bookingDate}</span>
         <span class="muted small-text" style="font-size: 0.75rem;">${timeRange}</span>
-        ${amount ? `<span class="muted small-text" style="font-size: 0.75rem;">฿${amount}</span>` : ""}
+        ${formattedAmount ? `<span class="muted small-text" style="font-size: 0.75rem;">${formattedAmount}</span>` : ""}
       </div>
     </div>
     <div class="booking-card__actions">
@@ -872,7 +923,9 @@ function createBookingCard(booking) {
 
 async function handlePayNow(bookingId, amount) {
   if (!window.currentUserId) {
-    alert("Please log in first");
+    showToast("Please log in first", "error");
+    showPage("auth");
+    showAuth("login");
     return;
   }
 
@@ -898,25 +951,37 @@ function closePaymentModal() {
 function toggleModalPaymentMethod(mode) {
   const qr = document.getElementById('modalQR');
   const card = document.getElementById('modalCard');
+  const cardNumber = document.getElementById('modalCardNumber');
+  const cardCvv = document.getElementById('modalCardCvv');
   if (mode === 'card') {
     qr.style.display = 'none';
     card.style.display = 'block';
+    cardNumber?.setAttribute('required', 'required');
+    cardCvv?.setAttribute('required', 'required');
   } else {
     qr.style.display = 'block';
     card.style.display = 'none';
+    cardNumber?.removeAttribute('required');
+    cardCvv?.removeAttribute('required');
   }
 }
 
 function toggleSummaryPaymentMethod(mode) {
   const qr = document.getElementById('paymentSummaryQR');
   const card = document.getElementById('paymentSummaryCard');
+  const cardNumber = document.getElementById('summaryCardNumber');
+  const cardCvv = document.getElementById('summaryCardCvv');
   if (!qr || !card) return;
   if (mode === 'card') {
     qr.style.display = 'none';
     card.style.display = 'block';
+    cardNumber?.setAttribute('required', 'required');
+    cardCvv?.setAttribute('required', 'required');
   } else {
     qr.style.display = 'block';
     card.style.display = 'none';
+    cardNumber?.removeAttribute('required');
+    cardCvv?.removeAttribute('required');
   }
 }
 
@@ -946,27 +1011,10 @@ async function confirmModalPayment() {
   }
 
   try {
-    const res = await fetch('finalize_payment.php', { method: 'POST', body: fd });
-    
-    // Ensure response is valid JSON before parsing
-    if (!res.ok && res.status !== 200) {
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `HTTP ${res.status}: Payment failed`);
-      } else {
-        throw new Error(`HTTP ${res.status}: Payment failed`);
-      }
-    }
-    
-    const data = await res.json();
-    if (data && data.success) {
-      showToast('Payment successful!', 'success');
-      closePaymentModal();
-      loadMyBookings();
-    } else {
-      throw new Error((data && data.error) || 'Payment failed');
-    }
+    await finalizePaymentRequest(fd);
+    showToast('Payment successful!', 'success');
+    closePaymentModal();
+    loadMyBookings();
   } catch (err) {
     console.error('Payment error:', err);
     showToast('Payment error: ' + err.message, 'error');
@@ -975,7 +1023,9 @@ async function confirmModalPayment() {
 
 async function handleCancelBooking(bookingId) {
   if (!window.currentUserId) {
-    alert("Please log in first");
+    showToast("Please log in first", "error");
+    showPage("auth");
+    showAuth("login");
     return;
   }
 
@@ -986,19 +1036,13 @@ async function handleCancelBooking(bookingId) {
     fd.append("booking_id", bookingId);
     fd.append("user_id", window.currentUserId);
 
-    const res = await fetch("cancel_booking.php", {
+    await requestJSON("cancel_booking.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-
-    const data = await res.json();
-    
-    if (data.success) {
-      showToast("Booking cancelled successfully", "success");
-      loadMyBookings(); // Reload bookings
-    } else {
-      showToast(data.error || "Cannot cancel booking", "error");
-    }
+    showToast("Booking cancelled successfully", "success");
+    loadMyBookings();
   } catch (err) {
     showToast("Error: " + err.message, "error");
   }
@@ -1009,6 +1053,7 @@ function ensureProfileAccess() {
   if (!window.currentUserId) {
     showToast("Please log in first", "error");
     showPage("auth");
+    showAuth("login");
     return false;
   }
   return true;
@@ -1025,15 +1070,11 @@ async function loadProfile() {
     const fd = new FormData();
     fd.append("user_id", window.currentUserId);
 
-    const res = await fetch("get_profile.php", {
+    const data = await requestJSON("get_profile.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to load profile");
-    }
 
     const user = data.user || {};
     nameEl.textContent = user.full_name || "-";
@@ -1065,15 +1106,11 @@ async function openEditName() {
     fd.append("user_id", window.currentUserId);
     fd.append("full_name", newName);
 
-    const res = await fetch("update_name.php", {
+    const data = await requestJSON("update_name.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to update name");
-    }
 
     nameEl.textContent = data.full_name || newName;
     showToast("Name updated successfully");
@@ -1109,15 +1146,11 @@ async function openEditEmail() {
     fd.append("user_id", window.currentUserId);
     fd.append("email", newEmail);
 
-    const res = await fetch("update_email.php", {
+    const data = await requestJSON("update_email.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to update email");
-    }
 
     emailEl.textContent = data.email || newEmail;
     showToast("Email updated successfully");
@@ -1154,15 +1187,11 @@ async function openChangePassword() {
     fd.append("old_password", oldPassword);
     fd.append("new_password", newPassword);
 
-    const res = await fetch("change_password.php", {
+    await requestJSON("change_password.php", {
       method: "POST",
-      body: fd
+      body: fd,
+      expectSuccess: true
     });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to change password");
-    }
 
     showToast("Password changed successfully");
   } catch (err) {
