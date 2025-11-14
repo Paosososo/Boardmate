@@ -21,8 +21,20 @@ if (!$user) {
     exit;
 }
 
-// ตรวจสอบรหัสผ่าน
-if (!password_verify($password, $user['password'])) {
+// ตรวจสอบรหัสผ่าน (รองรับทั้ง hash และ plain text เก่า)
+$isValid = password_verify($password, $user['password']);
+if (!$isValid && hash_equals($user['password'], $password)) {
+    $isValid = true;
+
+    // upgrade plain text password to hashed version
+    if (strlen($user['password']) < 60) {
+        $newHash = password_hash($password, PASSWORD_BCRYPT);
+        $update = $pdo->prepare("UPDATE user SET password = ? WHERE user_id = ?");
+        $update->execute([$newHash, $user['user_id']]);
+    }
+}
+
+if (!$isValid) {
     http_response_code(401);
     echo "Wrong password";
     exit;
@@ -30,6 +42,7 @@ if (!password_verify($password, $user['password'])) {
 
 // ตั้ง session
 session_start();
+session_regenerate_id(true);
 $_SESSION['user_id'] = $user['user_id'];
 $_SESSION['role']    = $user['role'];
 

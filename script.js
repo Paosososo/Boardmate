@@ -13,6 +13,7 @@ let selectedDurationHours = 0;
 window.currentBookingId = null;
 window.currentUserId = null;
 window.currentTotalAmount = 0;
+window.currentUserRole = null;
 
 function resetBookingState() {
   window.currentBookingId = null;
@@ -39,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // init ฟอร์ม
   initAuth();
+  initAdminForms();
   initStarRating();
 
   // เตรียม time select dropdown
@@ -70,7 +72,7 @@ function showPage(id) {
   if (target) target.classList.add("page--active");
 
   const topBar = document.getElementById("topBar");
-  if (id === "auth") {
+  if (id === "auth" || id === "admin-register") {
     topBar.style.display = "none";
   } else {
     topBar.style.display = "flex";
@@ -83,9 +85,8 @@ function showPage(id) {
 
   if (id === "room-booking") {
     resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
-  }
-  if (id === "profile") {
-    loadProfile();
+  } else if (id === "admin-dashboard" && window.currentUserRole === "admin") {
+    adminLoadDashboard();
   }
 
   toggleMenu(false);
@@ -95,6 +96,81 @@ function showPage(id) {
 function startBooking() {
   resetBookingState();          // ล้าง state รอบก่อน
   showPage("room-booking");     // ไปหน้าเลือกห้อง
+}
+
+function showAdminRegister() {
+  showPage("admin-register");
+}
+
+function returnToAuth() {
+  showPage("auth");
+  showAuth("login");
+}
+
+function handleLogout() {
+  window.currentUserId = null;
+  window.currentUserRole = null;
+  toggleAdminUI(false);
+  showPage("auth");
+  showAuth("choice");
+}
+
+function openAdminDashboard() {
+  if (window.currentUserRole !== "admin") {
+    showToast("Admin access only", "error");
+    return;
+  }
+  showPage("admin-dashboard");
+}
+
+function toggleAdminUI(isAdmin) {
+  const link = document.getElementById("adminMenuLink");
+  const badge = document.getElementById("adminBadge");
+  if (link) {
+    link.classList.toggle("hidden", !isAdmin);
+  }
+  if (badge) {
+    badge.classList.toggle("hidden", !isAdmin);
+  }
+}
+
+async function extractResponseMessage(res) {
+  try {
+    const text = await res.text();
+    if (!text) return "Request failed";
+    try {
+      const parsed = JSON.parse(text);
+      return parsed.message || parsed.error || parsed.status || text;
+    } catch (err) {
+      return text;
+    }
+  } catch (err) {
+    return "Request failed";
+  }
+}
+
+function formatStatusLabel(status) {
+  if (!status) return "-";
+  return status
+    .toString()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function makeStatusClass(status) {
+  if (!status) return "";
+  return `status-pill--${status.toString().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return value
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function mapTitle(id) {
@@ -109,7 +185,9 @@ function mapTitle(id) {
     "my-booking": "Your Booking",
     "favorites": "Favorite Game",
     "profile": "Profile",
-    "settings": "Settings"
+    "settings": "Settings",
+    "admin-register": "Admin Register",
+    "admin-dashboard": "Admin Dashboard"
   };
   return map[id] || "BoardMate";
 }
@@ -156,16 +234,24 @@ function initAuth() {
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(loginForm);
-      const res = await fetch("login.php", {
-        method: "POST",
-        body: formData
-      });
-      if (res.ok) {
+      try {
+        const res = await fetch("login.php", {
+          method: "POST",
+          body: formData
+        });
+        if (!res.ok) {
+          const message = await extractResponseMessage(res);
+          showToast(message || "Login failed", "error");
+          return;
+        }
         const data = await res.json();
         window.currentUserId = data.user.id;
-        showPage("home");
-      } else {
-        alert(await res.text());
+        window.currentUserRole = data.user.role || "user";
+        toggleAdminUI(window.currentUserRole === "admin");
+        showToast(`Welcome back, ${data.user.name || "player"}`, "success");
+        showPage(window.currentUserRole === "admin" ? "admin-dashboard" : "home");
+      } catch (err) {
+        showToast(err.message || "Cannot login", "error");
       }
     });
   }
@@ -175,22 +261,469 @@ function initAuth() {
     signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(signupForm);
-      const res = await fetch("register.php", {
-        method: "POST",
-        body: formData
-      });
-
-      const data = await res.json();   // 👈 เปลี่ยนเป็น json
-
-      if (res.ok && data.status === "OK") {
-        // 👇 ตอนนี้เรามี user_id แล้ว
-        window.currentUserId = data.user_id;
-        alert("Register success");
-        showPage("home");
-      } else {
-        alert(data.message || "Register failed");
+      try {
+        const res = await fetch("register.php", {
+          method: "POST",
+          body: formData
+        });
+        if (!res.ok) {
+          const message = await extractResponseMessage(res);
+          showToast(message || "Register failed", "error");
+          return;
+        }
+        const data = await res.json();
+        if (data.status === "OK") {
+          window.currentUserId = data.user_id;
+          window.currentUserRole = "user";
+          toggleAdminUI(false);
+          showToast("Account created successfully", "success");
+          showPage("home");
+        } else {
+          showToast(data.message || "Register failed", "error");
+        }
+      } catch (err) {
+        showToast(err.message || "Register failed", "error");
       }
     });
+  }
+}
+
+// =================== ADMIN UI ===================
+function initAdminForms() {
+  const adminForm = document.getElementById("adminRegisterForm");
+  if (adminForm) {
+    adminForm.addEventListener("submit", handleAdminRegisterSubmit);
+  }
+
+  const boardgameForm = document.getElementById("adminBoardgameForm");
+  if (boardgameForm) {
+    boardgameForm.addEventListener("submit", adminSubmitBoardgame);
+  }
+}
+
+async function handleAdminRegisterSubmit(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const formData = new FormData(form);
+  try {
+    const res = await fetch("admin_register.php", {
+      method: "POST",
+      body: formData
+    });
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      showToast(message || "Admin registration failed", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      window.currentUserId = data.user.id;
+      window.currentUserRole = data.user.role || "admin";
+      toggleAdminUI(true);
+      showToast("Admin registered successfully", "success");
+      form.reset();
+      showPage("admin-dashboard");
+    } else {
+      showToast(data.message || "Admin registration failed", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Admin registration failed", "error");
+  }
+}
+
+function adminLoadDashboard() {
+  if (window.currentUserRole !== "admin") return;
+  adminLoadBookings();
+  adminLoadRooms();
+  adminLoadBoardgames();
+}
+
+async function adminLoadBookings() {
+  if (window.currentUserRole !== "admin") return;
+  const list = document.getElementById("adminBookingsList");
+  const empty = document.getElementById("adminBookingsEmpty");
+  if (!list || !empty) return;
+
+  empty.style.display = "none";
+
+  try {
+    const res = await fetch("admin_get_bookings.php");
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      list.innerHTML = "";
+      empty.textContent = message || "Unable to load bookings";
+      empty.style.display = "block";
+      showToast(message || "Unable to load bookings", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      renderAdminBookings(data.bookings || []);
+    } else {
+      throw new Error(data.message || "Unable to load bookings");
+    }
+  } catch (err) {
+    list.innerHTML = "";
+    empty.textContent = err.message || "Unable to load bookings";
+    empty.style.display = "block";
+    showToast(err.message || "Unable to load bookings", "error");
+  }
+}
+
+function renderAdminBookings(bookings) {
+  const list = document.getElementById("adminBookingsList");
+  const empty = document.getElementById("adminBookingsEmpty");
+  if (!list || !empty) return;
+
+  list.innerHTML = "";
+  if (!bookings || bookings.length === 0) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  bookings.forEach((booking) => {
+    const card = document.createElement("div");
+    card.className = "admin-card";
+    const bookingStatusClass = makeStatusClass(booking.status);
+    const roomStatusClass = makeStatusClass(booking.room_status || booking.status);
+    card.innerHTML = `
+      <div class="admin-card__head">
+        <div>
+          <h4>#${escapeHtml(booking.booking_id)} • ${escapeHtml(booking.user_name)}</h4>
+          <p class="muted small-text">${escapeHtml(booking.email)}</p>
+        </div>
+        <span class="status-pill ${bookingStatusClass}">${formatStatusLabel(booking.status)}</span>
+      </div>
+      <div class="admin-card__body">
+        <div class="admin-card__row">
+          <div>
+            <span class="admin-label">Room</span>
+            <p class="admin-value">${escapeHtml(booking.room_name)}</p>
+          </div>
+          <div>
+            <span class="admin-label">Room status</span>
+            <p class="admin-value"><span class="status-pill ${roomStatusClass}">${formatStatusLabel(booking.room_status)}</span></p>
+          </div>
+        </div>
+        <div class="admin-card__row">
+          <div>
+            <span class="admin-label">Date</span>
+            <p class="admin-value">${escapeHtml(booking.booking_date)}</p>
+          </div>
+          <div>
+            <span class="admin-label">Time</span>
+            <p class="admin-value">${escapeHtml(booking.start_time)} - ${escapeHtml(booking.end_time)}</p>
+          </div>
+        </div>
+        <div class="admin-card__row">
+          <div>
+            <span class="admin-label">Price / hr</span>
+            <p class="admin-value">${escapeHtml(booking.price_per_hour)} THB</p>
+          </div>
+          <div>
+            <span class="admin-label">Game</span>
+            <p class="admin-value">${escapeHtml(booking.game_name || "-")}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+async function adminLoadRooms() {
+  if (window.currentUserRole !== "admin") return;
+  const grid = document.getElementById("adminRoomsList");
+  const empty = document.getElementById("adminRoomsEmpty");
+  if (!grid || !empty) return;
+
+  empty.style.display = "none";
+
+  try {
+    const res = await fetch("admin_get_rooms.php");
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      grid.innerHTML = "";
+      empty.textContent = message || "Unable to load rooms";
+      empty.style.display = "block";
+      showToast(message || "Unable to load rooms", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      renderAdminRooms(data.rooms || []);
+    } else {
+      throw new Error(data.message || "Unable to load rooms");
+    }
+  } catch (err) {
+    grid.innerHTML = "";
+    empty.textContent = err.message || "Unable to load rooms";
+    empty.style.display = "block";
+    showToast(err.message || "Unable to load rooms", "error");
+  }
+}
+
+function renderAdminRooms(rooms) {
+  const grid = document.getElementById("adminRoomsList");
+  const empty = document.getElementById("adminRoomsEmpty");
+  if (!grid || !empty) return;
+
+  grid.innerHTML = "";
+  if (!rooms || rooms.length === 0) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  rooms.forEach((room) => {
+    const card = document.createElement("div");
+    card.className = "admin-card admin-room-card";
+    card.dataset.roomId = room.room_id;
+    const statusClass = makeStatusClass(room.status);
+    card.innerHTML = `
+      <div class="admin-card__head">
+        <div>
+          <h4>${escapeHtml(room.room_name)}</h4>
+          <p class="muted small-text">Capacity: ${escapeHtml(room.capacity)} • Slot: ${escapeHtml(room.time_slot || "-")}</p>
+        </div>
+        <span class="status-pill ${statusClass}">${formatStatusLabel(room.status)}</span>
+      </div>
+      <label class="field-label small-text">Price per hour (THB)</label>
+      <input type="number" class="input admin-room-price" min="0" value="${escapeHtml(room.price_per_hour)}">
+      <label class="field-label small-text">Status</label>
+      <select class="input admin-room-status">
+        <option value="available" ${room.status === "available" ? "selected" : ""}>Available</option>
+        <option value="unavailable" ${room.status === "unavailable" ? "selected" : ""}>Unavailable</option>
+        <option value="maintenance" ${room.status === "maintenance" ? "selected" : ""}>Maintenance</option>
+      </select>
+      <button type="button" class="btn btn-primary btn-full mt-8" onclick="adminSaveRoom(${room.room_id})">Save changes</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function adminSaveRoom(roomId) {
+  if (window.currentUserRole !== "admin") return;
+  const card = document.querySelector(`.admin-room-card[data-room-id="${roomId}"]`);
+  if (!card) return;
+  const priceRaw = card.querySelector(".admin-room-price")?.value ?? "";
+  const status = card.querySelector(".admin-room-status")?.value;
+  const priceValue = parseFloat(priceRaw);
+
+  if (Number.isNaN(priceValue) || priceValue < 0) {
+    showToast("Enter a valid room price", "error");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("room_id", roomId);
+  fd.append("price_per_hour", priceValue);
+  if (status) {
+    fd.append("status", status);
+  }
+
+  try {
+    const res = await fetch("admin_update_room.php", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      showToast(message || "Unable to update room", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      showToast("Room updated", "success");
+      adminLoadRooms();
+    } else {
+      showToast(data.message || "Unable to update room", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Unable to update room", "error");
+  }
+}
+
+async function adminLoadBoardgames() {
+  if (window.currentUserRole !== "admin") return;
+  const list = document.getElementById("adminBoardgamesList");
+  const empty = document.getElementById("adminBoardgamesEmpty");
+  if (!list || !empty) return;
+
+  empty.style.display = "none";
+
+  try {
+    const res = await fetch("admin_get_boardgames.php");
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      list.innerHTML = "";
+      empty.textContent = message || "Unable to load boardgames";
+      empty.style.display = "block";
+      showToast(message || "Unable to load boardgames", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      renderAdminBoardgames(data.boardgames || []);
+    } else {
+      throw new Error(data.message || "Unable to load boardgames");
+    }
+  } catch (err) {
+    list.innerHTML = "";
+    empty.textContent = err.message || "Unable to load boardgames";
+    empty.style.display = "block";
+    showToast(err.message || "Unable to load boardgames", "error");
+  }
+}
+
+function renderAdminBoardgames(games) {
+  const list = document.getElementById("adminBoardgamesList");
+  const empty = document.getElementById("adminBoardgamesEmpty");
+  if (!list || !empty) return;
+
+  list.innerHTML = "";
+  if (!games || games.length === 0) {
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  games.forEach((game) => {
+    const card = document.createElement("div");
+    card.className = "admin-card admin-boardgame-card";
+    card.dataset.gameId = game.game_id;
+    const statusClass = makeStatusClass(game.is_active == 1 ? "active" : "inactive");
+    card.innerHTML = `
+      <div class="admin-card__head">
+        <div>
+          <h4>${escapeHtml(game.game_name)}</h4>
+          <p class="muted small-text">${escapeHtml(game.genre || "No genre")}</p>
+        </div>
+        <span class="status-pill ${statusClass}">${game.is_active == 1 ? "Active" : "Inactive"}</span>
+      </div>
+      <div class="admin-card__body">
+        <label class="field-label small-text">Game name</label>
+        <input type="text" class="input admin-game-name" value="${escapeHtml(game.game_name)}">
+        <label class="field-label small-text">Genre</label>
+        <input type="text" class="input admin-game-genre" value="${escapeHtml(game.genre || "")}">
+        <div class="admin-card__row">
+          <div>
+            <label class="field-label small-text">Min players</label>
+            <input type="number" class="input admin-game-min" value="${escapeHtml(game.players_min)}" min="1">
+          </div>
+          <div>
+            <label class="field-label small-text">Max players</label>
+            <input type="number" class="input admin-game-max" value="${escapeHtml(game.players_max)}" min="1">
+          </div>
+        </div>
+        <label class="field-label small-text">Status</label>
+        <select class="input admin-game-active">
+          <option value="1" ${parseInt(game.is_active, 10) === 1 ? "selected" : ""}>Active</option>
+          <option value="0" ${parseInt(game.is_active, 10) !== 1 ? "selected" : ""}>Inactive</option>
+        </select>
+      </div>
+      <div class="admin-card__actions">
+        <button type="button" class="btn btn-secondary" onclick="adminUpdateBoardgame(${game.game_id})">Save</button>
+        <button type="button" class="btn btn-danger" onclick="adminDeleteBoardgame(${game.game_id})">Delete</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+async function adminSubmitBoardgame(e) {
+  e.preventDefault();
+  if (window.currentUserRole !== "admin") {
+    showToast("Admin access only", "error");
+    return;
+  }
+  const form = e.currentTarget;
+  const fd = new FormData(form);
+  try {
+    const res = await fetch("admin_add_boardgame.php", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      showToast(message || "Unable to add boardgame", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      showToast("Boardgame added", "success");
+      form.reset();
+      adminLoadBoardgames();
+    } else {
+      showToast(data.message || "Unable to add boardgame", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Unable to add boardgame", "error");
+  }
+}
+
+async function adminUpdateBoardgame(gameId) {
+  if (window.currentUserRole !== "admin") return;
+  const card = document.querySelector(`.admin-boardgame-card[data-game-id="${gameId}"]`);
+  if (!card) return;
+
+  const fd = new FormData();
+  fd.append("game_id", gameId);
+  fd.append("game_name", card.querySelector(".admin-game-name")?.value || "");
+  fd.append("genre", card.querySelector(".admin-game-genre")?.value || "");
+  fd.append("players_min", card.querySelector(".admin-game-min")?.value || 2);
+  fd.append("players_max", card.querySelector(".admin-game-max")?.value || 4);
+  fd.append("is_active", card.querySelector(".admin-game-active")?.value || 1);
+
+  try {
+    const res = await fetch("admin_update_boardgame.php", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      showToast(message || "Unable to update boardgame", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      showToast("Boardgame updated", "success");
+      adminLoadBoardgames();
+    } else {
+      showToast(data.message || "Unable to update boardgame", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Unable to update boardgame", "error");
+  }
+}
+
+async function adminDeleteBoardgame(gameId) {
+  if (window.currentUserRole !== "admin") return;
+  if (!confirm("Delete this boardgame?")) return;
+
+  const fd = new FormData();
+  fd.append("game_id", gameId);
+
+  try {
+    const res = await fetch("admin_delete_boardgame.php", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      const message = await extractResponseMessage(res);
+      showToast(message || "Unable to delete boardgame", "error");
+      return;
+    }
+    const data = await res.json();
+    if (data.status === "OK") {
+      showToast("Boardgame deleted", "success");
+      adminLoadBoardgames();
+    } else {
+      showToast(data.message || "Unable to delete boardgame", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Unable to delete boardgame", "error");
   }
 }
 
@@ -935,171 +1468,5 @@ async function handleCancelBooking(bookingId) {
     }
   } catch (err) {
     showToast("Error: " + err.message, "error");
-  }
-}
-
-// =================== PROFILE ===================
-function ensureProfileAccess() {
-  if (!window.currentUserId) {
-    showToast("Please log in first", "error");
-    showPage("auth");
-    return false;
-  }
-  return true;
-}
-
-async function loadProfile() {
-  if (!ensureProfileAccess()) return;
-
-  const nameEl = document.getElementById("profileName");
-  const emailEl = document.getElementById("profileEmail");
-  if (!nameEl || !emailEl) return;
-
-  try {
-    const fd = new FormData();
-    fd.append("user_id", window.currentUserId);
-
-    const res = await fetch("get_profile.php", {
-      method: "POST",
-      body: fd
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to load profile");
-    }
-
-    const user = data.user || {};
-    nameEl.textContent = user.full_name || "-";
-    emailEl.textContent = user.email || "-";
-  } catch (err) {
-    console.error("loadProfile error:", err);
-    showToast(err.message || "Failed to load profile", "error");
-  }
-}
-
-async function openEditName() {
-  if (!ensureProfileAccess()) return;
-  const nameEl = document.getElementById("profileName");
-  if (!nameEl) return;
-
-  const currentName = (nameEl.textContent || "").trim();
-  const input = prompt("Enter new name", currentName);
-  if (input === null) return;
-
-  const newName = input.trim();
-  if (!newName) return;
-  if (newName === currentName) {
-    showToast("New name must be different from current name", "error");
-    return;
-  }
-
-  try {
-    const fd = new FormData();
-    fd.append("user_id", window.currentUserId);
-    fd.append("full_name", newName);
-
-    const res = await fetch("update_name.php", {
-      method: "POST",
-      body: fd
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to update name");
-    }
-
-    nameEl.textContent = data.full_name || newName;
-    showToast("Name updated successfully");
-  } catch (err) {
-    showToast(err.message || "Failed to update name", "error");
-  }
-}
-
-async function openEditEmail() {
-  if (!ensureProfileAccess()) return;
-  const emailEl = document.getElementById("profileEmail");
-  if (!emailEl) return;
-
-  const currentEmail = (emailEl.textContent || "").trim();
-  const input = prompt("Enter new email", currentEmail);
-  if (input === null) return;
-
-  const newEmail = input.trim();
-  if (!newEmail) return;
-  if (newEmail === currentEmail) {
-    showToast("New email must be different from current email", "error");
-    return;
-  }
-
-  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-  if (!emailRegex.test(newEmail)) {
-    showToast("Please enter a valid email address", "error");
-    return;
-  }
-
-  try {
-    const fd = new FormData();
-    fd.append("user_id", window.currentUserId);
-    fd.append("email", newEmail);
-
-    const res = await fetch("update_email.php", {
-      method: "POST",
-      body: fd
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to update email");
-    }
-
-    emailEl.textContent = data.email || newEmail;
-    showToast("Email updated successfully");
-  } catch (err) {
-    showToast(err.message || "Failed to update email", "error");
-  }
-}
-
-async function openChangePassword() {
-  if (!ensureProfileAccess()) return;
-
-  const oldPassword = prompt("Enter your current password");
-  if (oldPassword === null) return;
-  if (!oldPassword) {
-    showToast("Current password is required", "error");
-    return;
-  }
-
-  const newPassword = prompt("Enter new password");
-  if (newPassword === null) return;
-  if (!newPassword || newPassword.length < 6) {
-    showToast("New password must be at least 6 characters", "error");
-    return;
-  }
-
-  if (newPassword === oldPassword) {
-    showToast("New password must be different from current password", "error");
-    return;
-  }
-
-  try {
-    const fd = new FormData();
-    fd.append("user_id", window.currentUserId);
-    fd.append("old_password", oldPassword);
-    fd.append("new_password", newPassword);
-
-    const res = await fetch("change_password.php", {
-      method: "POST",
-      body: fd
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data || !data.success) {
-      throw new Error(data?.error || "Failed to change password");
-    }
-
-    showToast("Password changed successfully");
-  } catch (err) {
-    showToast(err.message || "Failed to change password", "error");
   }
 }
