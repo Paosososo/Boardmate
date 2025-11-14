@@ -128,6 +128,19 @@ function showPage(id) {
   if (id === "room-booking") {
     resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
   }
+  if (id === "profile") {
+    loadProfile();
+  }
+
+  toggleMenu(false);
+}
+  if (pageTitle) {
+    pageTitle.textContent = mapTitle(id);
+  }
+
+  if (id === "room-booking") {
+    resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
+  }
 
   if (id === "time-select" && typeof loadTimeSlots === "function") {
     loadTimeSlots();            // โหลด slot ทุกครั้งที่เข้าหน้านี้
@@ -625,28 +638,60 @@ async function confirmTime() {
 
 // =================== ยืนยันจ่าย ===================
 async function confirmPayment() {
-  if (window.currentBookingId) {
-    const fd = new FormData();
-    fd.append("booking_id", window.currentBookingId);
-    fd.append("method", "qr");
-    fd.append("amount", window.currentTotalAmount || 0);
+  if (!window.currentBookingId) {
+    showToast('No current booking to pay', 'error');
+    return;
+  }
 
-    const res = await fetch("finalize_payment.php", {
-      method: "POST",
-      body: fd
-    });
+  // read selected method from payment summary radios
+  const method = document.querySelector('input[name="payment_method"]:checked')?.value || 'qr';
+  const amount = window.currentTotalAmount || 0;
 
+  const fd = new FormData();
+  fd.append('booking_id', window.currentBookingId);
+  fd.append('method', method);
+  fd.append('amount', amount);
+
+  if (method === 'card') {
+    const card = document.getElementById('summaryCardNumber')?.value?.trim();
+    const cvv = document.getElementById('summaryCardCvv')?.value?.trim();
+    if (!card || !cvv) {
+      showToast('Please enter card number and CVV', 'error');
     if (!res.ok) {
       showToast(await res.text(), "error");
       return;
     }
+    fd.append('card_number', card);
+    fd.append('card_cvv', cvv);
   }
 
-  document.getElementById("myBookingRoom").textContent = selectedRoom ? selectedRoom.name : "-";
-  document.getElementById("myBookingGame").textContent = selectedGame ? selectedGame.title : "-";
-
-  showToast("Payment successful! 💳", "success");
-  showPage("payment-success");
+  try {
+    const res = await fetch('finalize_payment.php', { method: 'POST', body: fd });
+    
+    // Ensure response is valid JSON before parsing
+    if (!res.ok && res.status !== 200) {
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP ${res.status}: Payment failed`);
+      } else {
+        throw new Error(`HTTP ${res.status}: Payment failed`);
+      }
+    }
+    
+    const data = await res.json();
+    if (data && data.success) {
+      showToast('Payment successful!', 'success');
+      // optionally refresh bookings
+      if (window.currentUserId) loadMyBookings();
+      showPage('payment-success');
+    } else {
+      throw new Error((data && data.error) || 'Payment failed');
+    }
+  } catch (err) {
+    console.error('Payment error:', err);
+    showToast('Payment error: ' + err.message, 'error');
+  }
 }
 
 // =================== REVIEW ===================
@@ -706,4 +751,421 @@ function toggleQR(open) {
   const modal = document.getElementById("qrModal");
   if (!modal) return;
   modal.style.display = open ? "flex" : "none";
+}
+
+// =================== MY BOOKING (Your Booking Page) ===================
+async function loadMyBookings() {
+  if (!window.currentUserId) {
+    const list = document.getElementById("myBookingList");
+    const empty = document.getElementById("myBookingEmpty");
+    if (list) list.innerHTML = "";
+    if (empty) empty.style.display = "block";
+    alert("Please log in to view your bookings");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    
+    const res = await fetch("get_user_bookings.php", {
+      method: "POST",
+      body: fd
+    });
+
+    const data = await res.json();
+    
+    if (!data.success) {
+      showToast(data.error || "Failed to load bookings", "error");
+      return;
+    }
+
+    const bookings = data.bookings || [];
+    const list = document.getElementById("myBookingList");
+    const empty = document.getElementById("myBookingEmpty");
+
+    if (!list || !empty) return;
+
+    if (bookings.length === 0) {
+      list.innerHTML = "";
+      empty.style.display = "block";
+      return;
+    }
+
+    empty.style.display = "none";
+    list.innerHTML = "";
+
+    bookings.forEach(booking => {
+      const card = createBookingCard(booking);
+      list.appendChild(card);
+    });
+  } catch (err) {
+    showToast("Error loading bookings: " + err.message, "error");
+  }
+}
+
+function createBookingCard(booking) {
+  const card = document.createElement("div");
+  card.classList.add("booking-card");
+  card.setAttribute("data-booking-id", booking.booking_id);
+
+  // Determine status pill class
+  let statusClass = "status-pill--success";
+  if (booking.status === "unpaid") {
+    statusClass = "status-pill--unpaid";
+  } else if (booking.status === "cancelled") {
+    statusClass = "status-pill--cancelled";
+  } else if (booking.status === "draft") {
+    statusClass = "status-pill--unpaid";
+  }
+
+  // Format date and time
+  const bookingDate = new Date(booking.booking_date).toLocaleDateString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+  
+  const timeRange = `${booking.start_time} - ${booking.end_time}`;
+  // compute total amount if not provided: price_per_hour * duration_hours
+  let amount = booking.total_amount;
+  if (typeof amount === 'undefined' || amount === null) {
+    const price = parseFloat(booking.price_per_hour || 0);
+    const st = booking.start_time.split(':');
+    const et = booking.end_time.split(':');
+    const startH = parseInt(st[0]||0,10) + (parseInt(st[1]||0,10)/60);
+    const endH = parseInt(et[0]||0,10) + (parseInt(et[1]||0,10)/60);
+    const duration = Math.max(0, endH - startH);
+    amount = Math.round((price * duration) * 100) / 100;
+  }
+
+  // Build action buttons
+  let actionsHTML = "";
+  if (booking.status === "unpaid" || booking.status === "draft") {
+    actionsHTML += `<button class="btn btn-primary" onclick="handlePayNow(${booking.booking_id}, ${amount})">Pay Now</button>`;
+  }
+  
+  if (booking.status === "draft" || booking.status === "unpaid") {
+    actionsHTML += `<button class="btn btn-danger" onclick="handleCancelBooking(${booking.booking_id})">Cancel</button>`;
+  }
+
+  card.innerHTML = `
+    <div class="booking-card__img"></div>
+    <div class="booking-card__body">
+      <h3>${booking.room_name || "Room"}</h3>
+      <p class="muted">${booking.game_name || "Game"}</p>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+        <span class="status-pill ${statusClass}">${booking.status}</span>
+        <span class="muted small-text" style="font-size: 0.75rem;">${bookingDate}</span>
+        <span class="muted small-text" style="font-size: 0.75rem;">${timeRange}</span>
+        ${amount ? `<span class="muted small-text" style="font-size: 0.75rem;">฿${amount}</span>` : ""}
+      </div>
+    </div>
+    <div class="booking-card__actions">
+      ${actionsHTML}
+    </div>
+  `;
+
+  return card;
+}
+
+async function handlePayNow(bookingId, amount) {
+  if (!window.currentUserId) {
+    alert("Please log in first");
+    return;
+  }
+
+  // open modal and set booking context
+  window._modalBookingId = bookingId;
+  window._modalBookingAmount = amount || 0;
+  // reset modal inputs
+  const modal = document.getElementById('paymentModal');
+  if (!modal) return;
+  document.querySelector('input[name="modal_payment_method"][value="qr"]').checked = true;
+  toggleModalPaymentMethod('qr');
+  document.getElementById('modalCardNumber').value = '';
+  document.getElementById('modalCardCvv').value = '';
+  modal.style.display = 'flex';
+}
+
+function closePaymentModal() {
+  const modal = document.getElementById('paymentModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+}
+
+function toggleModalPaymentMethod(mode) {
+  const qr = document.getElementById('modalQR');
+  const card = document.getElementById('modalCard');
+  if (mode === 'card') {
+    qr.style.display = 'none';
+    card.style.display = 'block';
+  } else {
+    qr.style.display = 'block';
+    card.style.display = 'none';
+  }
+}
+
+function toggleSummaryPaymentMethod(mode) {
+  const qr = document.getElementById('paymentSummaryQR');
+  const card = document.getElementById('paymentSummaryCard');
+  if (!qr || !card) return;
+  if (mode === 'card') {
+    qr.style.display = 'none';
+    card.style.display = 'block';
+  } else {
+    qr.style.display = 'block';
+    card.style.display = 'none';
+  }
+}
+
+async function confirmModalPayment() {
+  const bookingId = window._modalBookingId;
+  const amount = window._modalBookingAmount || 0;
+  if (!bookingId) {
+    showToast('No booking selected', 'error');
+    return;
+  }
+
+  const method = document.querySelector('input[name="modal_payment_method"]:checked')?.value || 'qr';
+  const fd = new FormData();
+  fd.append('booking_id', bookingId);
+  fd.append('method', method);
+  fd.append('amount', amount);
+
+  if (method === 'card') {
+    const card = document.getElementById('modalCardNumber')?.value?.trim();
+    const cvv = document.getElementById('modalCardCvv')?.value?.trim();
+    if (!card || !cvv) {
+      showToast('Enter card number and CVV', 'error');
+      return;
+    }
+    fd.append('card_number', card);
+    fd.append('card_cvv', cvv);
+  }
+
+  try {
+    const res = await fetch('finalize_payment.php', { method: 'POST', body: fd });
+    
+    // Ensure response is valid JSON before parsing
+    if (!res.ok && res.status !== 200) {
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP ${res.status}: Payment failed`);
+      } else {
+        throw new Error(`HTTP ${res.status}: Payment failed`);
+      }
+    }
+    
+    const data = await res.json();
+    if (data && data.success) {
+      showToast('Payment successful!', 'success');
+      closePaymentModal();
+      loadMyBookings();
+    } else {
+      throw new Error((data && data.error) || 'Payment failed');
+    }
+  } catch (err) {
+    console.error('Payment error:', err);
+    showToast('Payment error: ' + err.message, 'error');
+  }
+}
+
+async function handleCancelBooking(bookingId) {
+  if (!window.currentUserId) {
+    alert("Please log in first");
+    return;
+  }
+
+  if (!confirm("Are you sure you want to cancel this booking?")) return;
+
+  try {
+    const fd = new FormData();
+    fd.append("booking_id", bookingId);
+    fd.append("user_id", window.currentUserId);
+
+    const res = await fetch("cancel_booking.php", {
+      method: "POST",
+      body: fd
+    });
+
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast("Booking cancelled successfully", "success");
+      loadMyBookings(); // Reload bookings
+    } else {
+      showToast(data.error || "Cannot cancel booking", "error");
+    }
+  } catch (err) {
+    showToast("Error: " + err.message, "error");
+  }
+}
+
+// =================== PROFILE ===================
+function ensureProfileAccess() {
+  if (!window.currentUserId) {
+    showToast("Please log in first", "error");
+    showPage("auth");
+    return false;
+  }
+  return true;
+}
+
+async function loadProfile() {
+  if (!ensureProfileAccess()) return;
+
+  const nameEl = document.getElementById("profileName");
+  const emailEl = document.getElementById("profileEmail");
+  if (!nameEl || !emailEl) return;
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+
+    const res = await fetch("get_profile.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to load profile");
+    }
+
+    const user = data.user || {};
+    nameEl.textContent = user.full_name || "-";
+    emailEl.textContent = user.email || "-";
+  } catch (err) {
+    console.error("loadProfile error:", err);
+    showToast(err.message || "Failed to load profile", "error");
+  }
+}
+
+async function openEditName() {
+  if (!ensureProfileAccess()) return;
+  const nameEl = document.getElementById("profileName");
+  if (!nameEl) return;
+
+  const currentName = (nameEl.textContent || "").trim();
+  const input = prompt("Enter new name", currentName);
+  if (input === null) return;
+
+  const newName = input.trim();
+  if (!newName) return;
+  if (newName === currentName) {
+    showToast("New name must be different from current name", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("full_name", newName);
+
+    const res = await fetch("update_name.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to update name");
+    }
+
+    nameEl.textContent = data.full_name || newName;
+    showToast("Name updated successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to update name", "error");
+  }
+}
+
+async function openEditEmail() {
+  if (!ensureProfileAccess()) return;
+  const emailEl = document.getElementById("profileEmail");
+  if (!emailEl) return;
+
+  const currentEmail = (emailEl.textContent || "").trim();
+  const input = prompt("Enter new email", currentEmail);
+  if (input === null) return;
+
+  const newEmail = input.trim();
+  if (!newEmail) return;
+  if (newEmail === currentEmail) {
+    showToast("New email must be different from current email", "error");
+    return;
+  }
+
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  if (!emailRegex.test(newEmail)) {
+    showToast("Please enter a valid email address", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("email", newEmail);
+
+    const res = await fetch("update_email.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to update email");
+    }
+
+    emailEl.textContent = data.email || newEmail;
+    showToast("Email updated successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to update email", "error");
+  }
+}
+
+async function openChangePassword() {
+  if (!ensureProfileAccess()) return;
+
+  const oldPassword = prompt("Enter your current password");
+  if (oldPassword === null) return;
+  if (!oldPassword) {
+    showToast("Current password is required", "error");
+    return;
+  }
+
+  const newPassword = prompt("Enter new password");
+  if (newPassword === null) return;
+  if (!newPassword || newPassword.length < 6) {
+    showToast("New password must be at least 6 characters", "error");
+    return;
+  }
+
+  if (newPassword === oldPassword) {
+    showToast("New password must be different from current password", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("user_id", window.currentUserId);
+    fd.append("old_password", oldPassword);
+    fd.append("new_password", newPassword);
+
+    const res = await fetch("change_password.php", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data || !data.success) {
+      throw new Error(data?.error || "Failed to change password");
+    }
+
+    showToast("Password changed successfully");
+  } catch (err) {
+    showToast(err.message || "Failed to change password", "error");
+  }
 }

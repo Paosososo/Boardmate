@@ -21,7 +21,7 @@
     </div>
     <nav class="side-menu__nav">
       <button class="side-link" onclick="showPage('home')">Home</button>
-      <button class="side-link" onclick="showPage('my-booking')">Your Booking</button>
+      <button class="side-link" onclick="showPage('my-booking'); loadMyBookings();">Your Booking</button>
       <button class="side-link" onclick="showPage('favorites')">Favorite Game</button>
       <button class="side-link" onclick="showPage('settings')">Setting</button>
       <button class="side-link" onclick="showPage('profile')">Profile</button>
@@ -203,6 +203,8 @@
         <p class="muted">Check your booking details</p>
       </div>
       <div class="section-spacing">
+        <div class="payment-warning">“Please complete your payment to lock your booking.<br>
+          Right now, your booking is not secured yet.”</div>
         <div class="summary-box">
           <div class="summary-row">
             <span>Room</span>
@@ -232,19 +234,28 @@
 
         <h3 class="section-title mt-16">Payment method</h3>
         <label class="pay-option">
-          <input type="radio" name="payment_method" value="qr" checked>
+          <input type="radio" name="payment_method" value="qr" checked onchange="toggleSummaryPaymentMethod('qr')">
           <span>QR Code</span>
         </label>
         <label class="pay-option">
-          <input type="radio" name="payment_method" value="card">
+          <input type="radio" name="payment_method" value="card" onchange="toggleSummaryPaymentMethod('card')">
           <span>Credit / Debit Card</span>
         </label>
 
-        <div class="qr-area">
-          <div class="qr-frame">
-            <div class="qr-square"></div>
+        <div id="paymentSummaryMethodArea">
+          <div id="paymentSummaryQR" class="qr-area">
+            <div class="qr-frame">
+              <div class="qr-square"></div>
+            </div>
+            <p class="muted">Scan this QR to pay</p>
           </div>
-          <p class="muted">Scan this QR to pay</p>
+
+          <div id="paymentSummaryCard" style="display:none; margin-top: .6rem;">
+            <label class="field-label">Card number</label>
+            <input id="summaryCardNumber" type="text" class="input" placeholder="1234 5678 9012 3456">
+            <label class="field-label">CVV</label>
+            <input id="summaryCardCvv" type="text" class="input" placeholder="123">
+          </div>
         </div>
 
         <button class="btn btn-primary btn-full" onclick="confirmPayment()">Confirm payment</button>
@@ -286,20 +297,14 @@
     <section id="my-booking" class="page">
       <div class="page-header">
         <h2>Your booking</h2>
-        <p class="muted">Check your current booking</p>
+        <p class="muted">Check your current bookings</p>
       </div>
       <div class="section-spacing">
-        <div class="booking-card">
-          <div class="booking-card__img"></div>
-          <div class="booking-card__body">
-            <h3 id="myBookingRoom">-</h3>
-            <p class="muted" id="myBookingGame">-</p>
-            <span class="status-pill status-pill--success">Paid</span>
-          </div>
-          <div class="booking-card__actions">
-            <button class="btn btn-secondary" onclick="toggleQR(true)">Show QR</button>
-            <button class="btn btn-danger">Cancel</button>
-          </div>
+        <div id="myBookingList" class="vertical-list">
+          <!-- Bookings will be rendered here by loadMyBookings() -->
+        </div>
+        <div id="myBookingEmpty" class="muted" style="text-align: center; margin-top: 2rem;">
+          No bookings yet. <a href="#" onclick="showPage('home'); return false;">Start a new booking</a>
         </div>
       </div>
       <div id="qrModal" class="qr-modal">
@@ -308,6 +313,35 @@
             <div class="qr-square"></div>
           </div>
           <button class="btn btn-light" onclick="toggleQR(false)">Close</button>
+        </div>
+      </div>
+      <!-- Payment modal for selecting QR or Card when paying a booking -->
+      <div id="paymentModal" class="qr-modal" style="display: none;">
+        <div class="qr-modal__content" style="width: 340px; max-width: 95%;">
+          <h3>Complete payment</h3>
+          <div style="margin: .6rem 0;">
+            <label class="pay-option"><input type="radio" name="modal_payment_method" value="qr" checked onchange="toggleModalPaymentMethod('qr')"> <span>QR Code</span></label>
+            <label class="pay-option"><input type="radio" name="modal_payment_method" value="card" onchange="toggleModalPaymentMethod('card')"> <span>Credit / Debit Card</span></label>
+          </div>
+
+          <div id="modalQR" class="qr-area">
+            <div class="qr-frame">
+              <div class="qr-square"></div>
+            </div>
+            <p class="muted">Scan this QR to pay</p>
+          </div>
+
+          <div id="modalCard" style="display:none;">
+            <label class="field-label">Card number</label>
+            <input id="modalCardNumber" type="text" class="input" placeholder="1234 5678 9012 3456">
+            <label class="field-label">CVV</label>
+            <input id="modalCardCvv" type="text" class="input" placeholder="123">
+          </div>
+
+          <div style="margin-top:.8rem; display:flex; gap:.5rem; justify-content:flex-end;">
+            <button class="btn btn-light" onclick="closePaymentModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmModalPayment()">Confirm payment</button>
+          </div>
         </div>
       </div>
     </section>
@@ -330,15 +364,36 @@
       </div>
       <div class="section-spacing">
         <div class="avatar-placeholder"></div>
-        <form class="form-block mt-16">
-          <label>Username</label>
-          <input type="text" class="input" placeholder="username">
-          <label>Email</label>
-          <input type="email" class="input" placeholder="email">
-          <label>Password</label>
-          <input type="password" class="input" placeholder="new password">
-          <button class="btn btn-primary">Update</button>
-        </form>
+
+        <div class="profile-block mt-16">
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Username</label>
+              <div id="profileName" class="profile-value">-</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openEditName()">Edit name</button>
+          </div>
+
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Email</label>
+              <div id="profileEmail" class="profile-value">-</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openEditEmail()">Edit email</button>
+          </div>
+
+          <div class="profile-row">
+            <div>
+              <label class="field-label">Password</label>
+              <div class="profile-value">••••••••</div>
+            </div>
+            <button type="button" class="btn-link" onclick="openChangePassword()">Change password</button>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-light mt-24" onclick="showPage('home')">
+          Back to home
+        </button>
       </div>
     </section>
 

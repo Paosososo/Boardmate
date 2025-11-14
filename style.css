@@ -1021,6 +1021,17 @@ select:focus {
   box-shadow: var(--shadow-btn);
 }
 
+.status-pill--unpaid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill--cancelled {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* time select */
 .time-grid {
   display: flex;
   gap: 1rem;
@@ -1045,6 +1056,17 @@ select:focus {
   box-shadow: var(--shadow-card);
   border: 2px solid rgba(231, 76, 60, 0.1);
   margin-bottom: 1rem;
+}
+
+/* warning shown on payment summary to prompt user to complete payment */
+.payment-warning {
+  color: var(--primary);
+  background: rgba(204, 75, 62, 0.04);
+  border-left: 4px solid var(--primary);
+  padding: .55rem .75rem;
+  border-radius: .6rem;
+  margin: .6rem 0 1rem;
+  font-weight: 600;
 }
 
 .summary-row {
@@ -1227,6 +1249,17 @@ select:focus {
   font-size: 1.1rem;
 }
 
+.booking-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.booking-card__body h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .booking-card__actions {
   grid-column: 1 / -1;
   display: flex;
@@ -1254,6 +1287,54 @@ select:focus {
   max-width: 90%;
 }
 
+/* profile */
+
+.profile-block {
+  margin-top: 1rem;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-value {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: .25rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: .25rem .4rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* toggles (fake) */
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  padding: .45rem 0;
+}
+
+/* brand dots */
+.brand-pill {
 /* ============ PROFILE ============ */
 .avatar-placeholder {
   width: 100px;
