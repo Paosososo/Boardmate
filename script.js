@@ -14,6 +14,48 @@ window.currentBookingId = null;
 window.currentUserId = null;
 window.currentTotalAmount = 0;
 
+// แมพชื่อเกมที่ต้องใช้ไฟล์เฉพาะ (เช่น .png)
+const customGameImages = {
+  "uno party": "games/uno.png",
+};
+
+// ฟังก์ชันแปลงชื่อเกมเป็นชื่อไฟล์รูป
+function getGameImagePath(gameName) {
+  const normalized = gameName.trim().toLowerCase();
+  if (customGameImages[normalized]) {
+    return customGameImages[normalized];
+  }
+
+  // แปลงชื่อเกมเป็น lowercase และแทนที่ช่องว่างด้วย dash
+  const filename = normalized
+    .replace(/\s+/g, '-')
+    .replace(/!/g, '')
+    .replace(/[^\w-]/g, '');
+  
+  // Default เป็นไฟล์ .jpg
+  return `games/${filename}.jpg`;
+}
+
+function updateTopBarTransparency() {
+  const topBar = document.getElementById("topBar");
+  if (!topBar) return;
+  if (topBar.style.display === "none") {
+    topBar.classList.remove("top-bar--scrolled");
+    return;
+  }
+
+  if (window.scrollY > 0) {
+    topBar.classList.add("top-bar--scrolled");
+  } else {
+    topBar.classList.remove("top-bar--scrolled");
+  }
+}
+
+function initTopBarTransparency() {
+  window.addEventListener("scroll", updateTopBarTransparency);
+  updateTopBarTransparency();
+}
+
 function resetBookingState() {
   window.currentBookingId = null;
   window.currentTotalAmount = 0;
@@ -43,6 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // เตรียม time select dropdown
   initTimeSelect();
+  initTopBarTransparency();
 });
 
 // Toast Notification System
@@ -75,6 +118,7 @@ function showPage(id) {
   } else {
     topBar.style.display = "flex";
   }
+  updateTopBarTransparency();
 
   const pageTitle = document.getElementById("pageTitle");
   if (pageTitle) {
@@ -86,6 +130,20 @@ function showPage(id) {
   }
   if (id === "profile") {
     loadProfile();
+  }
+
+  toggleMenu(false);
+}
+  if (pageTitle) {
+    pageTitle.textContent = mapTitle(id);
+  }
+
+  if (id === "room-booking") {
+    resetBookingState();        // ✅ เริ่มจองใหม่เมื่อมาที่หน้าห้อง
+  }
+
+  if (id === "time-select" && typeof loadTimeSlots === "function") {
+    loadTimeSlots();            // โหลด slot ทุกครั้งที่เข้าหน้านี้
   }
 
   toggleMenu(false);
@@ -163,9 +221,10 @@ function initAuth() {
       if (res.ok) {
         const data = await res.json();
         window.currentUserId = data.user.id;
+        showToast("Login successful! 🎉", "success");
         showPage("home");
       } else {
-        alert(await res.text());
+        showToast(await res.text(), "error");
       }
     });
   }
@@ -180,15 +239,14 @@ function initAuth() {
         body: formData
       });
 
-      const data = await res.json();   // 👈 เปลี่ยนเป็น json
+      const data = await res.json();
 
       if (res.ok && data.status === "OK") {
-        // 👇 ตอนนี้เรามี user_id แล้ว
         window.currentUserId = data.user_id;
-        alert("Register success");
+        showToast("Register successful! Welcome! 🎉", "success");
         showPage("home");
       } else {
-        alert(data.message || "Register failed");
+        showToast(data.message || "Register failed", "error");
       }
     });
   }
@@ -197,9 +255,9 @@ function initAuth() {
 // =================== HOME MOCK DATA ===================
 const recommendedGamesData = [
   { id: "g1", title: "Coup", players: "2–6 players", tag: "Most picked" },
-  { id: "g2", title: "Keyes", players: "2–10 players", tag: "Available" },
-  { id: "g3", title: "Rumen", players: "3–5 players", tag: "Available" },
-  { id: "g4", title: "Samarn", players: "2–4 players", tag: "New" },
+  { id: "g2", title: "Monopoly", players: "2–6 players", tag: "Classic" },
+  { id: "g3", title: "Sushi Go!", players: "2–4 players", tag: "Family Fun" },
+  { id: "g4", title: "Decrypto", players: "3–8 players", tag: "New" },
 ];
 
 const popularGamesData = [
@@ -217,8 +275,12 @@ function renderRecommended() {
   recommendedGamesData.forEach(item => {
     const card = document.createElement("div");
     card.className = "recom-card";
+    
+    const imgPath = getGameImagePath(item.title);
+    
     card.innerHTML = `
-      <div class="recom-img"></div>
+      <div class="recom-img" style="background-image: url('${imgPath}');">
+      </div>
       <h4>${item.title}</h4>
       <p class="muted">${item.players}</p>
       <span class="tag">${item.tag}</span>
@@ -234,8 +296,12 @@ function renderPopular() {
   popularGamesData.forEach(item => {
     const card = document.createElement("div");
     card.className = "pop-card";
+    
+    const imgPath = getGameImagePath(item.title);
+    
     card.innerHTML = `
-      <div class="pop-img"></div>
+      <div class="pop-img" style="background-image: url('${imgPath}');">
+      </div>
       <h4>${item.title}</h4>
       <p class="muted">${item.players} players</p>
     `;
@@ -256,17 +322,24 @@ async function renderRooms() {
     rooms.forEach(r => {
       const card = document.createElement("div");
       card.className = "room-card";
+      
+      // เพิ่ม emoji ตามขนาดห้อง
+      let roomEmoji = "🎲";
+      if (r.capacity <= 4) roomEmoji = "🎯";
+      else if (r.capacity <= 6) roomEmoji = "🎪";
+      else roomEmoji = "🏛️";
+      
       card.innerHTML = `
         <div class="room-head">
-          <h3>${r.room_name}</h3>
+          <h3>${roomEmoji} ${r.room_name}</h3>
           <span class="status-pill ${r.status === "available" ? "status-pill--success" : "status-pill--danger"}">
             ${r.status}
           </span>
         </div>
-        <p class="muted">Capacity: ${r.capacity}</p>
-        <p class="muted">Available: ${r.time_slot || "-"}</p>
-        <p><strong>${r.price_per_hour} THB / hr</strong></p>
-        <button class="btn btn-primary" ${r.status !== "available" ? "disabled" : ""} onclick="selectRoomFromDB(${r.room_id}, ${r.price_per_hour}, '${r.room_name}')">Select</button>
+        <p class="muted">👥 Capacity: ${r.capacity} players</p>
+        <p class="muted">⏰ Available: ${r.time_slot || "-"}</p>
+        <p><strong>💰 ${r.price_per_hour} THB / hr</strong></p>
+        <button class="btn btn-primary btn-full" ${r.status !== "available" ? "disabled" : ""} onclick="selectRoomFromDB(${r.room_id}, ${r.price_per_hour}, '${r.room_name}')">Select Room</button>
       `;
       wrap.appendChild(card);
     });
@@ -279,60 +352,70 @@ async function renderRooms() {
 function selectRoomFromDB(roomId, price, name) {
   resetBookingState(); // ✅ ล้างก่อนเริ่มจองรอบใหม่
   selectedRoom = { id: roomId, price: price, name: name };
+  showToast(`Selected ${name}! 🎯`, "success");
   showPage("time-select");
-  updateDurationPreview();
-  loadTimeSlots();
 }
 
-// =================== GAME SELECT (ดึงจาก PHP) ===================
+// =================== GAMES (ดึงจาก PHP) ===================
 async function renderGames() {
   const wrap = document.getElementById("gameList");
   if (!wrap) return;
 
-  const res = await fetch("get_games.php"); // เดี๋ยวให้โค้ดด้านล่าง
-  const games = await res.json();
+  try {
+    const res = await fetch("get_games.php");
+    const games = await res.json();
 
-  wrap.innerHTML = "";
-  games.forEach(g => {
-    const div = document.createElement("div");
-    div.className = "room-card";
-    div.innerHTML = `
-      <h3>${g.game_name}</h3>
-      <p class="muted">${g.genre ? g.genre : ""}</p>
-      <button class="btn btn-primary" onclick="selectGameFromDB(${g.game_id}, '${g.game_name.replace(/'/g, "\\'")}')">Select</button>
-    `;
-    wrap.appendChild(div);
-  });
+    wrap.innerHTML = "";
+    games.forEach(g => {
+      const card = document.createElement("div");
+      card.className = "game-card";
+      
+      const imgPath = getGameImagePath(g.game_name);
+      
+      card.innerHTML = `
+        <div class="game-img" style="background-image: url('${imgPath}'); background-size: cover; background-position: center;">
+        </div>
+        <div class="game-info">
+          <h3>${g.game_name}</h3>
+          <p class="muted">🎮 ${g.genre || "Board Game"}</p>
+          <p class="muted">👥 ${g.players_min}–${g.players_max} players</p>
+          <button class="btn btn-primary" onclick="selectGame(${g.game_id}, '${g.game_name}')">Choose</button>
+        </div>
+      `;
+      wrap.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+    wrap.innerHTML = "<p class='muted'>Cannot load games</p>";
+  }
 }
 
-async function selectGameFromDB(gameId, gameName) {
+async function selectGame(gameId, gameName) {
   selectedGame = { id: gameId, title: gameName };
+  showToast(`Selected ${gameName}! 🎲`, "success");
 
-  // ✅ บังคับให้รอบนี้เป็นบิลใหม่เสมอ
-  window.currentBookingId = null;
+  // สร้าง booking ใน DB
+  const success = await createBookingOnServer();
 
-  const ok = await createBookingOnServer();   // ส่ง game_id ไปด้วย
-  if (!ok) {
-    showToast("Cannot create booking", "error");
-    return;
+  if (success) {
+    // คำนวณราคา
+    const price = selectedRoom ? selectedRoom.price : 0;
+    const hours = selectedDurationHours || 0;
+    const total = price * hours;
+    window.currentTotalAmount = total;
+
+    // ใส่ข้อมูลสรุปในหน้าชำระเงิน
+    document.getElementById("summaryRoom").textContent = selectedRoom ? selectedRoom.name : "-";
+    document.getElementById("summaryGame").textContent = gameName;
+    document.getElementById("summaryDate").textContent = selectedDate || "-";
+    document.getElementById("summaryTime").textContent = selectedStartTime && selectedEndTime
+      ? `${selectedStartTime} - ${selectedEndTime}`
+      : "-";
+    document.getElementById("summaryDuration").textContent = `${hours} hour(s)`;
+    document.getElementById("summaryTotal").textContent = `${total} THB`;
+
+    showPage("payment");
   }
-
-  // อัปเดตสรุป
-  document.getElementById("summaryRoom").textContent = selectedRoom ? selectedRoom.name : "-";
-  document.getElementById("summaryGame").textContent = selectedGame ? selectedGame.title : "-";
-  document.getElementById("summaryDate").textContent = selectedDate || "-";
-  document.getElementById("summaryTime").textContent =
-    selectedStartTime && selectedEndTime ? `${selectedStartTime} - ${selectedEndTime}` : "-";
-  document.getElementById("summaryDuration").textContent =
-    selectedDurationHours ? `${selectedDurationHours} hour(s)` : "-";
-
-  const pricePerHour = selectedRoom ? selectedRoom.price : 0;
-  const total = pricePerHour * selectedDurationHours;
-  document.getElementById("summaryTotal").textContent = total + " THB";
-  window.currentTotalAmount = total;
-
-  // ไปหน้า Payment
-  showPage("payment");
 }
 
 // =================== TIME SELECT ===================
@@ -341,59 +424,47 @@ function initTimeSelect() {
   const endSel = document.getElementById("endTime");
   const dateInput = document.getElementById("bookingDate");
 
-  // ถ้า element ยังไม่มี ก็ไม่ต้องทำต่อ
   if (!startSel || !endSel) return;
 
-  // เคลียร์ของเก่า
-  startSel.innerHTML = "";
-  endSel.innerHTML = "";
-
-  // สร้างเวลา 10:00 - 22:00
+  // สร้าง options เวลา 10:00 - 22:00
   for (let h = 10; h <= 22; h++) {
-    const label = (h < 10 ? "0" + h : h) + ":00";
-
+    const val = `${String(h).padStart(2, "0")}:00`;
     const opt1 = document.createElement("option");
-    opt1.value = label;
-    opt1.textContent = label;
+    opt1.value = val;
+    opt1.textContent = val;
     startSel.appendChild(opt1);
 
     const opt2 = document.createElement("option");
-    opt2.value = label;
-    opt2.textContent = label;
+    opt2.value = val;
+    opt2.textContent = val;
     endSel.appendChild(opt2);
   }
 
-  // ตั้งค่าวันเริ่มต้นเป็นวันนี้
-  if (dateInput) {
-    const today = new Date().toISOString().split("T")[0];
-    dateInput.value = today;
-    // เก็บไว้ในตัวแปรกลางด้วย
-    selectedDate = dateInput.value;
-  }
+  startSel.value = "10:00";
+  endSel.value = "11:00";
 
-  // เวลาผู้ใช้เปลี่ยนเวลา ให้คำนวณชั่วโมงใหม่
   startSel.addEventListener("change", updateDurationPreview);
   endSel.addEventListener("change", updateDurationPreview);
 
-  // เวลาผู้ใช้เปลี่ยน "วัน" ให้คำนวณใหม่ + โหลด slot จาก server
   if (dateInput) {
+    // ตั้งวันที่เริ่มต้นเป็นวันนี้
+    const today = new Date().toISOString().split("T")[0];
+    dateInput.value = today;
+    dateInput.min = today;
+
     dateInput.addEventListener("change", () => {
       selectedDate = dateInput.value;
       updateDurationPreview();
-      // โหลดช่องเวลาของห้องนี้ในวันที่เลือก
-      loadTimeSlots();   // ← ตัวนี้คือฟังก์ชันที่เราเขียนเพิ่มเมื่อกี้
+      loadTimeSlots();
     });
   }
 
-  // คำนวณครั้งแรก
   updateDurationPreview();
 
-  // ถ้าเราเลือกห้องมาแล้ว ให้โหลด slot ครั้งแรกเลย
   if (typeof loadTimeSlots === "function") {
     loadTimeSlots();
   }
 }
-
 
 function updateDurationPreview() {
   const startSel = document.getElementById("startTime");
@@ -421,51 +492,48 @@ function updateDurationPreview() {
 
   if (summary) {
     if (duration > 0) {
-      summary.textContent = `Duration: ${duration} hour(s)`;
+      summary.textContent = `⏱️ Duration: ${duration} hour(s)`;
     } else {
-      summary.textContent = "Duration: invalid, please adjust time";
+      summary.textContent = "⚠️ Duration: invalid, please adjust time";
     }
   }
 }
 
 // ========== สร้าง booking ใน DB (หลังเลือกเกม) ==========
 async function createBookingOnServer() {
-  // ตรวจสอบว่าเลือกครบแล้ว
   if (!window.currentUserId) {
-    showToast("กรุณาเข้าสู่ระบบก่อน", "error");
+    showToast("Please login first 🔐", "error");
     return false;
   }
   if (!selectedRoom || !selectedRoom.id) {
-    showToast("กรุณาเลือกห้อง", "error");
+    showToast("Please select a room 🏠", "error");
     return false;
   }
   if (!selectedDate || !selectedStartTime || !selectedEndTime) {
-    showToast("กรุณาเลือกวันและเวลา", "error");
+    showToast("Please select date and time ⏰", "error");
     return false;
   }
   if (!selectedGame || !selectedGame.id) {
-    showToast("กรุณาเลือกบอร์ดเกม", "error");
+    showToast("Please select a game 🎲", "error");
     return false;
   }
 
-  // แปลงเวลาให้เป็น HH:MM:SS
   const toHMS = (t) => (t && t.length === 5 ? `${t}:00` : t);
   const start_hms = toHMS(selectedStartTime);
   const end_hms   = toHMS(selectedEndTime);
 
-  // กัน user เลือกเวลาผิด
   if (!start_hms || !end_hms || start_hms >= end_hms) {
-    showToast("เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด", "error");
+    showToast("Start time must be before end time ⏰", "error");
     return false;
   }
 
   const fd = new FormData();
   fd.append("user_id", String(window.currentUserId));
   fd.append("room_id", String(selectedRoom.id));
-  fd.append("booking_date", selectedDate);   // YYYY-MM-DD
-  fd.append("start_time", start_hms);        // HH:MM:SS
-  fd.append("end_time", end_hms);            // HH:MM:SS
-  fd.append("game_id", String(selectedGame.id)); // ✅ เพิ่มเกมเข้าไปด้วย
+  fd.append("booking_date", selectedDate);
+  fd.append("start_time", start_hms);
+  fd.append("end_time", end_hms);
+  fd.append("game_id", String(selectedGame.id));
 
   try {
     const res = await fetch("create_booking.php", {
@@ -473,7 +541,6 @@ async function createBookingOnServer() {
       body: fd
     });
 
-    // พยายาม parse เป็น JSON
     let data;
     try {
       data = await res.json();
@@ -482,7 +549,6 @@ async function createBookingOnServer() {
       return false;
     }
 
-    // รองรับได้ทั้งรูปแบบใหม่และเก่า
     const ok =
       (data && data.success === true) ||
       (data && data.status === "OK");
@@ -497,10 +563,9 @@ async function createBookingOnServer() {
         window.currentBookingId = bookingId;
       }
 
-      showToast("Booking successful!", "success");
+      showToast("Booking created! 🎉", "success");
       return true;
     } else {
-      // แสดงข้อความจาก backend ถ้ามี
       const msg =
         data?.error ||
         data?.message ||
@@ -517,7 +582,6 @@ async function createBookingOnServer() {
 
 // เรียกตอนเข้า Choose Time
 async function loadTimeSlots() {
-  // ต้องรู้ก่อนว่าเลือกห้องอะไร
   if (!selectedRoom || !selectedRoom.id) {
     console.warn("No room selected yet");
     return;
@@ -540,20 +604,19 @@ async function loadTimeSlots() {
 
     if (slot.available) {
       btn.addEventListener("click", () => {
-        // ถ้ากด slot ว่าง → กำหนด start / end อัตโนมัติ
         selectedStartTime = slot.start;
         selectedEndTime = slot.end;
         selectedDurationHours = 1;
 
-        // ถ้ามี select เวลาอยู่ก็อัปเดตด้วย
         const startSel = document.getElementById("startTime");
         const endSel = document.getElementById("endTime");
         if (startSel) startSel.value = slot.start;
         if (endSel) endSel.value = slot.end;
 
-        // ไฮไลต์ปุ่มที่เลือก
         document.querySelectorAll(".time-slot-btn").forEach(b => b.classList.remove("time-slot--selected"));
         btn.classList.add("time-slot--selected");
+        
+        updateDurationPreview();
       });
     } else {
       btn.disabled = true;
@@ -563,15 +626,13 @@ async function loadTimeSlots() {
   });
 }
 
-
 async function confirmTime() {
-  // ถ้ายังเลือกเวลาไม่ถูก
   if (!selectedDurationHours || selectedDurationHours <= 0) {
-    showToast("Please select valid start and end time", "error");
+    showToast("Please select valid start and end time ⏰", "error");
     return;
   }
 
-  // ถ้าสำเร็จ → ไปหน้าเลือกเกม
+  showToast("Time confirmed! 👍", "success");
   showPage("game-select");
 }
 
@@ -596,6 +657,8 @@ async function confirmPayment() {
     const cvv = document.getElementById('summaryCardCvv')?.value?.trim();
     if (!card || !cvv) {
       showToast('Please enter card number and CVV', 'error');
+    if (!res.ok) {
+      showToast(await res.text(), "error");
       return;
     }
     fd.append('card_number', card);
@@ -642,21 +705,23 @@ function initStarRating() {
     });
   });
 }
+
 function updateStarDisplay() {
   const row = document.getElementById("starRow");
   if (!row) return;
   row.querySelectorAll("span").forEach(star => {
     const rate = parseInt(star.dataset.rate);
-    star.style.color = rate <= currentRating ? "#ffb347" : "#dae2ff";
+    star.style.color = rate <= currentRating ? "#f39c12" : "#e0e0e0";
   });
 }
+
 async function submitReview() {
   const comment = document.getElementById("commentBox").value;
   const rating = currentRating || 0;
   const bookingId = window.currentBookingId;
 
   if (!bookingId) {
-    alert("No booking to review");
+    showToast("No booking to review", "error");
     return;
   }
 
@@ -671,14 +736,15 @@ async function submitReview() {
   });
 
   if (res.ok) {
-    alert("Thanks for your feedback!");
+    showToast("Thanks for your feedback! ⭐", "success");
     document.getElementById("commentBox").value = "";
+    currentRating = 0;
+    updateStarDisplay();
     showPage("home");
   } else {
-    alert(await res.text());
+    showToast(await res.text(), "error");
   }
 }
-
 
 // =================== QR MODAL ===================
 function toggleQR(open) {

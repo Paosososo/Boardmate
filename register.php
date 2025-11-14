@@ -1,4 +1,4 @@
-<?php
+\<?php
 require 'config.php';
 
 $full_name = $_POST['full_name'] ?? '';
