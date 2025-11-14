@@ -1267,6 +1267,75 @@ select:focus {
   margin-top: 0.5rem;
 }
 
+/* ============ GAME DETAIL ============ */
+.game-detail-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 700px) {
+  .game-detail-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.game-detail-media {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  border: 2px solid rgba(231, 76, 60, 0.1);
+}
+
+.game-detail-img {
+  width: 100%;
+  padding-top: 65%;
+  border-radius: var(--radius-md);
+  background-size: cover;
+  background-position: center;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  box-shadow: 0 8px 24px rgba(231, 76, 60, 0.25);
+}
+
+.game-detail-meta {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  border: 2px solid rgba(231, 76, 60, 0.06);
+}
+
+.game-detail-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.game-detail-howto {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-card);
+  border: 2px solid rgba(231, 76, 60, 0.06);
+}
+
+.game-detail-howto h3 {
+  margin: 0 0 0.75rem;
+  color: var(--primary-red);
+  font-size: 1.15rem;
+}
+
+.game-detail-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .qr-modal {
   position: fixed;
   inset: 0;

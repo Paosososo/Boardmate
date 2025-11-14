@@ -13,6 +13,8 @@ let selectedDurationHours = 0;
 window.currentBookingId = null;
 window.currentUserId = null;
 window.currentTotalAmount = 0;
+let currentGameDetail = null;
+window.preselectedGameFromDetail = null;
 
 // แมพชื่อเกมที่ต้องใช้ไฟล์เฉพาะ (เช่น .png)
 const customGameImages = {
@@ -74,6 +76,12 @@ function resetBookingState() {
   selectedStartTime = null;
   selectedEndTime = null;
   selectedDurationHours = 0;
+}
+
+function restorePreselectedGameIfAvailable() {
+  if (window.preselectedGameFromDetail) {
+    selectedGame = { ...window.preselectedGameFromDetail };
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -175,8 +183,20 @@ function showPage(id) {
 
 // เริ่มจองใหม่จากหน้า Home (เรียกจากปุ่ม)
 function startBooking() {
+  window.preselectedGameFromDetail = null;
   resetBookingState();          // ล้าง state รอบก่อน
   showPage("room-booking");     // ไปหน้าเลือกห้อง
+}
+
+function startBookingFromGameDetail() {
+  if (!window.preselectedGameFromDetail) {
+    showToast("No game selected", "error");
+    return;
+  }
+
+  resetBookingState();
+  restorePreselectedGameIfAvailable();
+  showPage("room-booking");
 }
 
 function mapTitle(id) {
@@ -185,6 +205,7 @@ function mapTitle(id) {
     "room-booking": "Room Booking",
     "time-select": "Choose Time",
     "game-select": "Select Game",
+    "game-detail": "Game Detail",
     "payment": "Payment",
     "payment-success": "Success",
     "review": "Review",
@@ -310,17 +331,17 @@ async function logoutUser() {
 
 // =================== HOME MOCK DATA ===================
 const recommendedGamesData = [
-  { id: "g1", title: "Coup", players: "2–6 players", tag: "Most picked" },
-  { id: "g2", title: "Monopoly", players: "2–6 players", tag: "Classic" },
-  { id: "g3", title: "Sushi Go!", players: "2–4 players", tag: "Family Fun" },
-  { id: "g4", title: "Decrypto", players: "3–8 players", tag: "New" },
+  { id: "g1", title: "Coup", players: "2–6 players", tag: "Most picked", db_name: "Coup" },
+  { id: "g2", title: "Monopoly", players: "2–6 players", tag: "Classic", db_name: "Monopoly" },
+  { id: "g3", title: "Sushi Go!", players: "2–4 players", tag: "Family Fun", db_name: "Sushi Go!" },
+  { id: "g4", title: "Decrypto", players: "3–8 players", tag: "New", db_name: "Decrypto" },
 ];
 
 const popularGamesData = [
-  { id: "p1", title: "Uno Party", players: "2–10" },
-  { id: "p2", title: "Monopoly", players: "2–6" },
-  { id: "p3", title: "Sushi Go!", players: "2–4" },
-  { id: "p4", title: "Decrypto", players: "3–8" },
+  { id: "p1", title: "Coup", players: "2–6 players", db_name: "Coup" },
+  { id: "p2", title: "Monopoly", players: "2–6 players", db_name: "Monopoly" },
+  { id: "p3", title: "Sushi Go!", players: "2–4 players", db_name: "Sushi Go!" },
+  { id: "p4", title: "Decrypto", players: "3–8 players", db_name: "Decrypto" },
 ];
 
 // =================== RENDER HOME ===================
@@ -341,6 +362,16 @@ function renderRecommended() {
       <p class="muted">${item.players}</p>
       <span class="tag">${item.tag}</span>
     `;
+    card.style.cursor = "pointer";
+    card.tabIndex = 0;
+    const openFn = () => openGameDetailByName(item.db_name || item.title);
+    card.addEventListener("click", openFn);
+    card.addEventListener("keypress", (evt) => {
+      if (evt.key === "Enter" || evt.key === " ") {
+        evt.preventDefault();
+        openFn();
+      }
+    });
     wrap.appendChild(card);
   });
 }
@@ -359,8 +390,18 @@ function renderPopular() {
       <div class="pop-img" style="background-image: url('${imgPath}');">
       </div>
       <h4>${item.title}</h4>
-      <p class="muted">${item.players} players</p>
+      <p class="muted">${item.players}</p>
     `;
+    card.style.cursor = "pointer";
+    card.tabIndex = 0;
+    const openFn = () => openGameDetailByName(item.db_name || item.title);
+    card.addEventListener("click", openFn);
+    card.addEventListener("keypress", (evt) => {
+      if (evt.key === "Enter" || evt.key === " ") {
+        evt.preventDefault();
+        openFn();
+      }
+    });
     wrap.appendChild(card);
   });
 }
@@ -414,6 +455,7 @@ async function renderRooms() {
 
 function selectRoomFromDB(roomId, price, name) {
   resetBookingState(); // ✅ ล้างก่อนเริ่มจองรอบใหม่
+  restorePreselectedGameIfAvailable();
   selectedRoom = { id: roomId, price: price, name: name };
   showToast(`Selected ${name}! 🎯`, "success");
   showPage("time-select");
@@ -436,6 +478,7 @@ async function renderGames() {
       const safeName = escapeHTML(g.game_name || "Game");
       const safeGenre = escapeHTML(g.genre || "Board Game");
       const playerRange = `${g.players_min || "-"}–${g.players_max || "-"}`;
+      const escapedNameForJs = (g.game_name || "").replace(/'/g, "\\'");
       
       card.innerHTML = `
         <div class="game-img" style="background-image: url('${imgPath}'); background-size: cover; background-position: center;">
@@ -444,18 +487,97 @@ async function renderGames() {
           <h3>${safeName}</h3>
           <p class="muted">🎮 ${safeGenre}</p>
           <p class="muted">👥 ${playerRange} players</p>
+          <div style="display:flex; gap:.5rem; margin-top:.5rem; flex-wrap:wrap;">
+            <button class="btn btn-light" type="button" onclick="openGameDetail(${g.game_id})">View detail</button>
+            <button class="btn btn-primary" type="button" onclick="selectGame(${g.game_id}, '${escapedNameForJs}')">Choose</button>
+          </div>
         </div>
       `;
-      const btn = document.createElement("button");
-      btn.className = "btn btn-primary";
-      btn.textContent = "Choose";
-      btn.addEventListener("click", () => selectGame(g.game_id, g.game_name));
-      card.querySelector(".game-info").appendChild(btn);
       wrap.appendChild(card);
     });
   } catch (err) {
     console.error(err);
     wrap.innerHTML = "<p class='muted'>Cannot load games</p>";
+  }
+}
+
+function setGameDetailContent(game) {
+  if (!game) return;
+  const imgPath = getGameImagePath(game.game_name || "");
+  const nameEl = document.getElementById("detailGameName");
+  const imgEl = document.getElementById("detailGameImage");
+  const genreEl = document.getElementById("detailGameGenre");
+  const playersEl = document.getElementById("detailGamePlayers");
+  const howEl = document.getElementById("detailGameHowToPlay");
+
+  if (nameEl) nameEl.textContent = game.game_name || "Game name";
+  if (imgEl) imgEl.style.backgroundImage = `url('${imgPath}')`;
+  if (genreEl) genreEl.textContent = game.genre || "Board Game";
+  if (playersEl) {
+    const min = game.players_min ?? "?";
+    const max = game.players_max ?? "?";
+    playersEl.textContent = `${min}–${max} players`;
+  }
+  if (howEl) {
+    const lines = (game.how_to_play || "Coming soon.").split(/\r?\n/).map(line => escapeHTML(line));
+    howEl.innerHTML = lines.join("<br>");
+  }
+}
+
+async function openGameDetail(gameId) {
+  if (!gameId) {
+    showToast("Game not found", "error");
+    return;
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("game_id", String(gameId));
+    const data = await requestJSON("get_game_detail.php", {
+      method: "POST",
+      body: fd,
+      expectSuccess: true
+    });
+
+    currentGameDetail = data.game;
+    window.preselectedGameFromDetail = {
+      id: data.game.game_id,
+      title: data.game.game_name
+    };
+    setGameDetailContent(currentGameDetail);
+    showPage("game-detail");
+  } catch (err) {
+    console.error("openGameDetail error:", err);
+    showToast(err.message || "Failed to load game detail", "error");
+  }
+}
+
+async function openGameDetailByName(gameName) {
+  if (!gameName) {
+    showToast("Game name missing", "error");
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ name: gameName });
+    const data = await requestJSON(`get_game_detail_by_name.php?${params.toString()}`, {
+      expectSuccess: true
+    });
+
+    if (data && data.game) {
+      currentGameDetail = data.game;
+      window.preselectedGameFromDetail = {
+        id: data.game.game_id,
+        title: data.game.game_name
+      };
+      setGameDetailContent(currentGameDetail);
+      showPage("game-detail");
+    } else {
+      showToast("Cannot find game detail", "error");
+    }
+  } catch (err) {
+    console.error("openGameDetailByName error:", err);
+    showToast(err.message || "Cannot find game detail", "error");
   }
 }
 
@@ -687,7 +809,11 @@ async function confirmTime() {
   }
 
   showToast("Time confirmed! 👍", "success");
-  showPage("game-select");
+  if (selectedGame && selectedGame.id) {
+    await selectGame(selectedGame.id, selectedGame.title || "");
+  } else {
+    showPage("game-select");
+  }
 }
 
 // =================== ยืนยันจ่าย ===================
@@ -733,6 +859,7 @@ async function confirmPayment() {
     }
     const paidBookingId = window.currentBookingId;
     resetBookingState();
+    window.preselectedGameFromDetail = null;
     window.currentBookingId = paidBookingId;
     showPage('payment-success');
   } catch (err) {
