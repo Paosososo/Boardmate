@@ -500,6 +500,16 @@ select:focus {
   color: #b02b21;
 }
 
+.status-pill--unpaid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill--cancelled {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
 /* time select */
 .time-grid {
   display: flex;
@@ -519,6 +529,17 @@ select:focus {
   border-radius: 1.1rem;
   padding: .8rem .8rem .6rem;
   box-shadow: var(--shadow-card);
+}
+
+/* warning shown on payment summary to prompt user to complete payment */
+.payment-warning {
+  color: var(--primary);
+  background: rgba(204, 75, 62, 0.04);
+  border-left: 4px solid var(--primary);
+  padding: .55rem .75rem;
+  border-radius: .6rem;
+  margin: .6rem 0 1rem;
+  font-weight: 600;
 }
 
 .summary-row {
@@ -608,8 +629,9 @@ select:focus {
   display: grid;
   grid-template-columns: 70px 1fr;
   gap: .75rem;
-  align-items: center;
+  align-items: flex-start;
   box-shadow: var(--shadow-card);
+  margin-bottom: .75rem;
 }
 
 .booking-card__img {
@@ -619,10 +641,22 @@ select:focus {
   background: linear-gradient(140deg, rgba(35, 110, 109, .9), rgba(243, 181, 63, .7));
 }
 
+.booking-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.booking-card__body h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .booking-card__actions {
   grid-column: 1 / -1;
   display: flex;
   gap: .5rem;
+  flex-wrap: wrap;
 }
 
 .qr-modal {

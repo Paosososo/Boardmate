@@ -43,9 +43,15 @@ CREATE PROCEDURE create_booking(
     SELECT LAST_INSERT_ID() AS booking_id;
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `finalize_payment` (IN `p_booking_id` INT, IN `p_method` VARCHAR(20), IN `p_amount` DECIMAL(10,2))   BEGIN
-    INSERT INTO payment (booking_id, amount, method, status)
-    VALUES (p_booking_id, p_amount, p_method, 'paid');
+CREATE DEFINER=`root`@`localhost` PROCEDURE `finalize_payment` (
+  IN `p_booking_id` INT,
+  IN `p_method` VARCHAR(20),
+  IN `p_amount` DECIMAL(10,2),
+  IN `p_card_number` VARCHAR(32),
+  IN `p_card_cvv` VARCHAR(8)
+)   BEGIN
+    INSERT INTO payment (booking_id, amount, method, status, card_number, card_cvv)
+    VALUES (p_booking_id, p_amount, p_method, 'paid', p_card_number, p_card_cvv);
 
     UPDATE booking
     SET status = 'paid'
@@ -140,6 +146,7 @@ CREATE TRIGGER `trg_booking_no_overlap` BEFORE INSERT ON `booking` FOR EACH ROW 
         WHERE room_id = NEW.room_id
           AND booking_date = NEW.booking_date
           AND status <> 'cancelled'
+          AND status = 'paid'
           -- เงื่อนไขซ้อนเวลาแบบอนุญาตให้ต่อหางได้
           AND (NEW.start_time < end_time AND NEW.end_time > start_time)
     ) THEN
@@ -199,6 +206,8 @@ CREATE TABLE `payment` (
   `payment_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `amount` decimal(10,2) NOT NULL,
   `method` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'qr',
+  `card_number` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `card_cvv` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('pending','paid','failed','refunded') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
