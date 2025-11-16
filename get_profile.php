@@ -3,23 +3,11 @@ require 'config.php';
 
 header('Content-Type: application/json');
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-function respond(int $code, array $payload): void {
-    http_response_code($code);
-    echo json_encode($payload);
-    exit;
-}
-
 $userId = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
-if ($userId <= 0 && !empty($_SESSION['user_id'])) {
-    $userId = (int)$_SESSION['user_id'];
-}
-
 if ($userId <= 0) {
-    respond(401, ['success' => false, 'error' => 'User not found']);
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid user id']);
+    exit;
 }
 
 try {
@@ -28,10 +16,12 @@ try {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user) {
-        respond(404, ['success' => false, 'error' => 'User not found']);
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'User not found']);
+        exit;
     }
 
-    respond(200, [
+    echo json_encode([
         'success' => true,
         'user' => [
             'user_id' => (int)$user['user_id'],
@@ -40,5 +30,6 @@ try {
         ]
     ]);
 } catch (PDOException $e) {
-    respond(500, ['success' => false, 'error' => 'Failed to fetch profile']);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Failed to fetch profile']);
 }

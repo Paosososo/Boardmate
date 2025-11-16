@@ -94,7 +94,6 @@ CREATE TABLE `boardgame` (
   `genre` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `players_min` tinyint(3) UNSIGNED DEFAULT '2',
   `players_max` tinyint(3) UNSIGNED DEFAULT '6',
-  `how_to_play` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -103,11 +102,11 @@ CREATE TABLE `boardgame` (
 -- Dumping data for table `boardgame`
 --
 
-INSERT INTO `boardgame` (`game_id`, `game_name`, `genre`, `players_min`, `players_max`, `how_to_play`, `is_active`, `created_at`) VALUES
-(1, 'Coup', 'Bluffing', 2, 6, 'Collect income to build influence.\nUse character actions boldly.\nBluff opponents and challenge lies.\nBe the last agent with influence.', 1, '2025-11-09 14:54:23'),
-(2, 'Monopoly', 'Economic', 2, 6, 'Roll dice to travel the board.\nBuy properties you land on.\nBuild houses to raise rent.\nBankrupt rivals with clever trades.', 1, '2025-11-09 14:54:23'),
-(3, 'Sushi Go!', 'Drafting', 2, 4, 'Pick one card and pass the rest.\nCollect matching sushi sets.\nBalance rolls, sashimi, and desserts.\nHighest total after three rounds wins.', 1, '2025-11-09 14:54:23'),
-(4, 'Decrypto', 'Party', 3, 8, 'Split into two clue-giving teams.\nDescribe secret words with coded hints.\nIntercept and decode rival clues.\nFirst to miscommunicate twice loses.', 1, '2025-11-09 14:54:23');
+INSERT INTO `boardgame` (`game_id`, `game_name`, `genre`, `players_min`, `players_max`, `is_active`, `created_at`) VALUES
+(1, 'Coup', 'Bluffing', 2, 6, 1, '2025-11-09 14:54:23'),
+(2, 'Monopoly', 'Economic', 2, 6, 1, '2025-11-09 14:54:23'),
+(3, 'Sushi Go!', 'Drafting', 2, 4, 1, '2025-11-09 14:54:23'),
+(4, 'Decrypto', 'Party', 3, 8, 1, '2025-11-09 14:54:23');
 
 -- --------------------------------------------------------
 

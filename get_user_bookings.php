@@ -1,31 +1,24 @@
 <?php
 require 'config.php';
+session_start();
 
-header('Content-Type: application/json');
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-function respond(int $code, array $payload): void {
-    http_response_code($code);
-    echo json_encode($payload);
+$user_id = $_SESSION['user_id'] ?? ($_POST['user_id'] ?? ($_GET['user_id'] ?? null));
+if (!$user_id) {
+    header('Content-Type: application/json');
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "user_id required"]);
     exit;
 }
 
-$user_id = $_SESSION['user_id'] ?? $_POST['user_id'] ?? $_GET['user_id'] ?? null;
-if (!$user_id) {
-    respond(400, ["success" => false, "error" => "user_id required"]);
-}
-
 try {
-    $stmt = $pdo->prepare('CALL get_user_bookings(?)');
+    $stmt = $pdo->prepare("CALL get_user_bookings(?)");
     $stmt->execute([$user_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    while ($stmt->nextRowset()) { /* consume */ }
-    $stmt->closeCursor();
 
-    respond(200, ["success" => true, "bookings" => $rows]);
+    header('Content-Type: application/json');
+    echo json_encode(["success" => true, "bookings" => $rows]);
 } catch (PDOException $e) {
-    respond(500, ["success" => false, "error" => "Failed to load bookings"]);
+    header('Content-Type: application/json');
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => $e->getMessage()]);
 }

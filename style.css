@@ -1,6 +1,6 @@
 :root {
   /* สีหลัก - เน้นแดงตามโลโก้ BoardMate */
-  --primary-red: #e74c3c;
+  --primary-red: #fffffff;
   --primary-dark: #c0392b;
   --accent-yellow: #f39c12;
   --accent-orange: #e67e22;
@@ -437,6 +437,7 @@ body::before {
   font-size: 3rem;
 }
 
+
 .hero-img img {
   max-width: 80%;
   max-height: 80%;
@@ -686,8 +687,6 @@ select:focus {
   border-radius: 999px;
   height: 48px;
   font-size: 0.95rem;
-  position: relative;
-  z-index: 1;
 }
 
 .search-box input:focus {
@@ -701,8 +700,6 @@ select:focus {
   left: 1rem;
   transform: translateY(-50%);
   font-size: 1.3rem;
-  z-index: 2;
-  pointer-events: none;
 }
 
 /* ============ SECTION TITLE ============ */
@@ -1037,7 +1034,6 @@ select:focus {
   box-shadow: var(--shadow-btn);
 }
 
-/* time select (start/end dropdowns) */
 .time-grid {
   display: flex;
   gap: 1rem;
@@ -1062,17 +1058,6 @@ select:focus {
   box-shadow: var(--shadow-card);
   border: 2px solid rgba(231, 76, 60, 0.1);
   margin-bottom: 1rem;
-}
-
-/* warning shown on payment summary to prompt user to complete payment */
-.payment-warning {
-  color: var(--primary-red);
-  background: rgba(204, 75, 62, 0.04);
-  border-left: 4px solid var(--primary-red);
-  padding: .55rem .75rem;
-  border-radius: .6rem;
-  margin: .6rem 0 1rem;
-  font-weight: 600;
 }
 
 .summary-row {
@@ -1249,11 +1234,6 @@ select:focus {
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
 }
 
-.booking-card__body {
-  display: flex;
-  flex-direction: column;
-}
-
 .booking-card__body h3 {
   margin: 0 0 0.5rem;
   color: var(--ink);
@@ -1265,75 +1245,6 @@ select:focus {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.5rem;
-}
-
-/* ============ GAME DETAIL ============ */
-.game-detail-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr);
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 700px) {
-  .game-detail-shell {
-    grid-template-columns: 1fr;
-  }
-}
-
-.game-detail-media {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-card);
-  border: 2px solid rgba(231, 76, 60, 0.1);
-}
-
-.game-detail-img {
-  width: 100%;
-  padding-top: 65%;
-  border-radius: var(--radius-md);
-  background-size: cover;
-  background-position: center;
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  box-shadow: 0 8px 24px rgba(231, 76, 60, 0.25);
-}
-
-.game-detail-meta {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-card);
-  border: 2px solid rgba(231, 76, 60, 0.06);
-}
-
-.game-detail-pill-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.game-detail-howto {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow-card);
-  border: 2px solid rgba(231, 76, 60, 0.06);
-}
-
-.game-detail-howto h3 {
-  margin: 0 0 0.75rem;
-  color: var(--primary-red);
-  font-size: 1.15rem;
-}
-
-.game-detail-actions {
-  margin-top: 1.5rem;
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .qr-modal {
@@ -1429,7 +1340,6 @@ select:focus {
   font-weight: 600;
 }
 
-/* ============ ADMIN DASHBOARD ============ */
 .admin-header {
   display: flex;
   align-items: center;
@@ -1567,6 +1477,7 @@ select:focus {
   margin-top: 0.75rem;
 }
 
+
 /* ============ TOAST NOTIFICATIONS ============ */
 #toastContainer {
   position: fixed;
@@ -1658,20 +1569,4 @@ select:focus {
   .admin-section {
     padding: 1.25rem;
   }
-}
-
-/* ============ HOME VISUAL LARGE IMAGE ============ */
-.home-visual {
-  margin: 1rem 0 1.5rem;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-  background: #fff;
-}
-
-.home-visual img {
-  width: 100%;
-  display: block;
-  object-fit: cover;
-  max-height: 260px;
 }

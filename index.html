@@ -13,39 +13,26 @@
   <!-- Side Menu -->
   <aside id="sideMenu" class="side-menu">
     <div class="side-menu__header">
-      <div class="brand-logo">
-        <img src="boardmate_logo_noBG.png" alt="BoardMate">
+      <div class="brand-pill">
+        <span class="brand-dot brand-dot--amber"></span>
+        <span class="brand-dot brand-dot--teal"></span>
+        <span class="brand-dot brand-dot--red"></span>
       </div>
       <h2 class="side-title">BoardMate</h2>
       <button class="close-btn" onclick="toggleMenu(false)">×</button>
     </div>
-  <!-- Side Menu -->
-  <aside id="sideMenu" class="side-menu">
-    <div class="side-menu__header">
-      <div class="brand-logo">
-        <img src="boardmate_logo_noBG.png" alt="BoardMate">
-      </div>
-      <h2 class="side-title">BoardMate</h2>
-      <button class="close-btn" onclick="toggleMenu(false)">×</button>
-    </div>
-
     <nav class="side-menu__nav">
       <button class="side-link" onclick="showPage('home')">Home</button>
       <button class="side-link" onclick="showPage('my-booking'); loadMyBookings();">Your Booking</button>
       <button class="side-link" onclick="showPage('favorites')">Favorite Game</button>
       <button class="side-link" onclick="showPage('settings')">Setting</button>
       <button class="side-link" onclick="showPage('profile')">Profile</button>
-      <!-- ปุ่มนี้จะแสดงเฉพาะตอนเป็น admin (ให้ JS เอา hidden ออก) -->
       <button id="adminMenuLink" class="side-link hidden" onclick="openAdminDashboard()">Admin Dashboard</button>
     </nav>
-
     <div class="side-menu__footer">
       <button class="logout-btn" onclick="handleLogout()">Logout</button>
     </div>
   </aside>
-
-  <div id="overlay" class="overlay" onclick="toggleMenu(false)"></div>
-
   <div id="overlay" class="overlay" onclick="toggleMenu(false)"></div>
 
   <!-- Top Bar -->
@@ -65,9 +52,6 @@
       <div class="auth-shell">
         <!-- hero ด้านซ้าย -->
         <div class="auth-hero">
-          <div class="brand-logo-large">
-            <img src="boardmate_logo_noBG.png" alt="BoardMate">
-          </div>
           <div class="auth-badge">Board Game Hub</div>
           <h2>Welcome to BoardMate</h2>
           <p>Play, book, and enjoy your favorite games</p>
@@ -167,18 +151,13 @@
           <h2 class="hero-title">Find your boardgame table.</h2>
           <p class="muted">Choose room • Select game • Pay • Play</p>
         </div>
-        <div class="hero-img hero-img--home">
-          
-        </div>
+        <div class="hero-img hero-img--home"></div>
       </div>
 
       <div class="section-spacing">
         <div class="search-box">
           <span class="search-icon">🔎</span>
           <input type="text" id="searchInput" placeholder="Search boardgame...">
-        </div>
-        <div class="home-visual">
-          <img src="Hero.jpg" alt="BoardMate players enjoying board games">
         </div>
 
         <h3 class="section-title">Recommended</h3>
@@ -249,46 +228,6 @@
         <p class="muted">Choose the boardgame you want to play.</p>
       </div>
       <div class="section-spacing" id="gameList"></div>
-    </section>
-    
-    <!-- GAME DETAIL -->
-    <section id="game-detail" class="page">
-      <div class="page-header">
-        <h2 id="detailGameName">Game name</h2>
-        <p class="muted">Game overview</p>
-      </div>
-
-      <div class="section-spacing">
-        <div class="game-detail-shell">
-          <div class="game-detail-media">
-            <div id="detailGameImage" class="game-detail-img"></div>
-          </div>
-
-          <div class="game-detail-meta">
-            <div class="game-detail-pill-row">
-              <span class="tag" id="detailGameGenre">Genre</span>
-              <span class="tag" id="detailGamePlayers">2–4 players</span>
-            </div>
-            <p class="muted small-text">
-              This game is available in BoardMate. You can pick it when booking a room.
-            </p>
-          </div>
-        </div>
-
-        <div class="game-detail-howto">
-          <h3>How to play</h3>
-          <p id="detailGameHowToPlay" class="muted"></p>
-        </div>
-
-        <div class="game-detail-actions">
-          <button type="button" class="btn btn-light" onclick="showPage('home')">
-            Back to Home
-          </button>
-          <button type="button" class="btn btn-primary" onclick="startBookingFromGameDetail()">
-            Choose this game when booking
-          </button>
-        </div>
-      </div>
     </section>
 
     <!-- PAYMENT -->
