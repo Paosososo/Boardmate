@@ -96,6 +96,23 @@ body::before {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+.top-bar__center {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-badge {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: white;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(0, 0, 0, 0.25);
+}
+
 .icon-btn {
   background: rgba(255, 255, 255, 0.95);
   border: none;
@@ -108,23 +125,6 @@ body::before {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.2s ease;
-}
-
-.top-bar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.admin-badge {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: #fff;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  padding: 0.2rem 0.7rem;
-  border-radius: 999px;
-  text-transform: uppercase;
 }
 
 .icon-btn:hover {
@@ -437,6 +437,7 @@ body::before {
   font-size: 3rem;
 }
 
+
 .hero-img img {
   max-width: 80%;
   max-height: 80%;
@@ -532,6 +533,26 @@ select:focus {
 
 .small-text a:hover {
   text-decoration: underline;
+}
+
+.text-link-btn {
+  background: none;
+  border: none;
+  color: var(--primary-red);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.text-link-btn:hover {
+  color: var(--primary-dark);
+}
+
+.admin-link-note {
+  text-align: center;
+  margin-top: 0.5rem;
 }
 
 /* ============ BUTTONS ============ */
@@ -1037,7 +1058,17 @@ select:focus {
   box-shadow: var(--shadow-btn);
 }
 
-/* time select (start/end dropdowns) */
+.status-pill--unpaid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill--cancelled {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* time select */
 .time-grid {
   display: flex;
   gap: 1rem;
@@ -1066,9 +1097,9 @@ select:focus {
 
 /* warning shown on payment summary to prompt user to complete payment */
 .payment-warning {
-  color: var(--primary-red);
+  color: var(--primary);
   background: rgba(204, 75, 62, 0.04);
-  border-left: 4px solid var(--primary-red);
+  border-left: 4px solid var(--primary);
   padding: .55rem .75rem;
   border-radius: .6rem;
   margin: .6rem 0 1rem;
@@ -1249,15 +1280,21 @@ select:focus {
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
 }
 
-.booking-card__body {
-  display: flex;
-  flex-direction: column;
-}
-
 .booking-card__body h3 {
   margin: 0 0 0.5rem;
   color: var(--ink);
   font-size: 1.1rem;
+}
+
+.booking-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.booking-card__body h3 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .booking-card__actions {
@@ -1358,20 +1395,53 @@ select:focus {
 
 /* ============ PROFILE ============ */
 .avatar-placeholder {
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, rgba(35, 110, 109, 0.25), rgba(204, 75, 62, 0.35));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 2rem;
+  color: #fff;
   box-shadow: var(--shadow-card);
 }
 
-.avatar-placeholder::after {
-  content: '👤';
+.profile-block {
+  margin-top: 1rem;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-value {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: .25rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: .25rem .4rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
 }
 
 /* ============ SETTINGS ============ */
@@ -1397,174 +1467,6 @@ select:focus {
   height: 26px;
   cursor: pointer;
   accent-color: var(--primary-red);
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: var(--primary-dark);
-  font-weight: 600;
-  padding: 0;
-  cursor: pointer;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
-}
-
-.admin-register-link {
-  margin-top: 0.75rem;
-}
-
-.admin-register-hero {
-  background: linear-gradient(135deg, #16a085, #27ae60);
-}
-
-.badge-soft {
-  background: rgba(231, 76, 60, 0.1);
-  color: var(--primary-dark);
-  border-radius: 999px;
-  padding: 0.35rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-/* ============ ADMIN DASHBOARD ============ */
-.admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.admin-section {
-  background: white;
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-card);
-  margin-bottom: 1.5rem;
-  border: 2px solid rgba(231, 76, 60, 0.08);
-}
-
-.admin-section__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.admin-card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.admin-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
-}
-
-.admin-card {
-  background: #fff;
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
-}
-
-.admin-card__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.admin-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.admin-card__row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.admin-card__row > div {
-  flex: 1 1 120px;
-}
-
-.admin-card__actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
-.admin-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-}
-
-.admin-value {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.admin-boardgame-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.admin-boardgame-form input,
-.admin-boardgame-form select {
-  flex: 1 1 150px;
-  padding: 0.65rem 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-.admin-room-card select,
-.admin-room-card input {
-  width: 100%;
-}
-
-.status-pill--available,
-.status-pill--active,
-.status-pill--paid,
-.status-pill--checked-in {
-  background: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-}
-
-.status-pill--unavailable,
-.status-pill--unpaid,
-.status-pill--draft {
-  background: rgba(243, 156, 18, 0.15);
-  color: #f39c12;
-}
-
-.status-pill--maintenance,
-.status-pill--inactive,
-.status-pill--cancelled {
-  background: rgba(231, 76, 60, 0.15);
-  color: #e74c3c;
-}
-
-.center-text {
-  text-align: center;
-}
-
-.mt-8 {
-  margin-top: 0.75rem;
 }
 
 /* ============ TOAST NOTIFICATIONS ============ */
@@ -1616,6 +1518,147 @@ select:focus {
   }
 }
 
+/* ============ ADMIN DASHBOARD ============ */
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-section {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(231, 76, 60, 0.08);
+}
+
+.admin-section__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.admin-section__head h3 {
+  margin: 0;
+}
+
+.admin-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-card {
+  background: white;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(231, 76, 60, 0.08);
+  padding: 1rem;
+  box-shadow: 0 6px 18px rgba(231, 76, 60, 0.08);
+}
+
+.admin-card__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.admin-card__form {
+  margin-top: 0.75rem;
+}
+
+.admin-card__row {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-card__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.admin-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.admin-status--success {
+  background: rgba(39, 174, 96, 0.15);
+  color: var(--success);
+}
+
+.admin-status--warning {
+  background: rgba(243, 156, 18, 0.15);
+  color: var(--accent-orange);
+}
+
+.admin-status--danger {
+  background: rgba(231, 76, 60, 0.15);
+  color: var(--danger);
+}
+
+.admin-status--muted {
+  background: rgba(127, 140, 141, 0.15);
+  color: var(--muted);
+}
+
+.admin-form {
+  margin-top: 1rem;
+  background: rgba(231, 76, 60, 0.04);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border: 1px solid rgba(231, 76, 60, 0.08);
+}
+
+.admin-form h4 {
+  margin: 0;
+  color: var(--primary-red);
+}
+
+.admin-form__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-card__row--split > div,
+.admin-form__row > div {
+  flex: 1;
+}
+
+@media (min-width: 600px) {
+  .admin-card__row--split,
+  .admin-form__row {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 900px) {
+  .admin-dashboard {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-section--full {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ============ RESPONSIVE ============ */
 @media (min-width: 850px) {
   .auth-shell {
@@ -1646,21 +1689,7 @@ select:focus {
     height: 80px;
     font-size: 2.5rem;
   }
-
-  .admin-boardgame-form {
-    flex-direction: column;
-  }
-
-  .admin-card__row {
-    flex-direction: column;
-  }
-
-  .admin-section {
-    padding: 1.25rem;
-  }
 }
-
-/* ============ HOME VISUAL LARGE IMAGE ============ */
 .home-visual {
   margin: 1rem 0 1.5rem;
   border-radius: var(--radius-lg);

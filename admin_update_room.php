@@ -1,50 +1,59 @@
 <?php
 require 'config.php';
-session_start();
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    echo json_encode(["status" => "ERROR", "message" => "Forbidden"]);
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function respond(int $code, array $payload): void {
+    http_response_code($code);
+    echo json_encode($payload);
     exit;
 }
 
-$roomId = (int)($_POST['room_id'] ?? 0);
-$price = $_POST['price_per_hour'] ?? null;
-$status = $_POST['status'] ?? null;
-
-if ($roomId <= 0 || $price === null) {
-    http_response_code(400);
-    echo json_encode(["status" => "ERROR", "message" => "Missing room_id or price"]);
-    exit;
+if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+    respond(403, ["success" => false, "status" => "ERROR", "message" => "Forbidden"]);
 }
 
-$priceValue = filter_var($price, FILTER_VALIDATE_FLOAT);
-if ($priceValue === false || $priceValue < 0) {
-    http_response_code(400);
-    echo json_encode(["status" => "ERROR", "message" => "Invalid price"]);
-    exit;
+$roomId = isset($_POST['room_id']) ? (int)$_POST['room_id'] : 0;
+$priceInput = $_POST['price_per_hour'] ?? null;
+$statusInput = isset($_POST['status']) ? trim($_POST['status']) : '';
+
+if ($roomId <= 0) {
+    respond(400, ["success" => false, "status" => "ERROR", "message" => "Invalid room ID"]);
 }
 
-$fields = ["price_per_hour = ?"];
-$params = [$priceValue];
+$updates = [];
+$params = ['id' => $roomId];
 
-if ($status !== null && $status !== '') {
-    $status = strtolower($status);
-    $allowed = ['available', 'unavailable', 'maintenance'];
-    if (!in_array($status, $allowed, true)) {
-        http_response_code(400);
-        echo json_encode(["status" => "ERROR", "message" => "Invalid status"]);
-        exit;
+if ($priceInput !== null && $priceInput !== '') {
+    if (!is_numeric($priceInput) || (float)$priceInput < 0) {
+        respond(400, ["success" => false, "status" => "ERROR", "message" => "Invalid price"]);
     }
-    $fields[] = "status = ?";
-    $params[] = $status;
+    $updates[] = 'price_per_hour = :price';
+    $params['price'] = number_format((float)$priceInput, 2, '.', '');
 }
 
-$params[] = $roomId;
-$sql = "UPDATE room SET " . implode(', ', $fields) . " WHERE room_id = ?";
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+if ($statusInput !== '') {
+    $allowedStatuses = ['available', 'unavailable', 'maintenance'];
+    if (!in_array($statusInput, $allowedStatuses, true)) {
+        respond(400, ["success" => false, "status" => "ERROR", "message" => "Invalid status"]);
+    }
+    $updates[] = 'status = :status';
+    $params['status'] = $statusInput;
+}
 
-echo json_encode(["status" => "OK"]);
+if (empty($updates)) {
+    respond(400, ["success" => false, "status" => "ERROR", "message" => "Nothing to update"]);
+}
+
+try {
+    $sql = 'UPDATE room SET ' . implode(', ', $updates) . ' WHERE room_id = :id';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    respond(200, ["success" => true, "status" => "OK", "message" => "Room updated"]);
+} catch (PDOException $e) {
+    respond(500, ["success" => false, "status" => "ERROR", "message" => "Failed to update room"]);
+}

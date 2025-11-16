@@ -1,19 +1,26 @@
 <?php
 require 'config.php';
-session_start();
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    echo json_encode(["status" => "ERROR", "message" => "Forbidden"]);
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function respond(int $code, array $payload): void {
+    http_response_code($code);
+    echo json_encode($payload);
     exit;
 }
 
-$stmt = $pdo->query("SELECT game_id, game_name, genre, players_min, players_max, is_active FROM boardgame ORDER BY game_name ASC");
-$games = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+    respond(403, ["success" => false, "status" => "ERROR", "message" => "Forbidden"]);
+}
 
-echo json_encode([
-    "status" => "OK",
-    "boardgames" => $games
-]);
+try {
+    $stmt = $pdo->query('SELECT game_id, game_name, genre, players_min, players_max, is_active FROM boardgame ORDER BY game_name');
+    $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    respond(200, ["success" => true, "status" => "OK", "boardgames" => $games]);
+} catch (PDOException $e) {
+    respond(500, ["success" => false, "status" => "ERROR", "message" => "Failed to load boardgames"]);
+}

@@ -23,7 +23,7 @@ if ($userId <= 0) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT user_id, full_name, email FROM user WHERE user_id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT user_id, full_name, email, role FROM user WHERE user_id = :id LIMIT 1');
     $stmt->execute(['id' => $userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -36,7 +36,8 @@ try {
         'user' => [
             'user_id' => (int)$user['user_id'],
             'full_name' => $user['full_name'],
-            'email' => $user['email']
+            'email' => $user['email'],
+            'role' => $user['role'] ?? 'user'
         ]
     ]);
 } catch (PDOException $e) {

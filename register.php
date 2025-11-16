@@ -50,7 +50,8 @@ try {
             "id" => $newId,
             "full_name" => $full_name,
             "name" => $full_name,
-            "email" => $email
+            "email" => $email,
+            "role" => "user"
         ]
     ]);
 } catch (PDOException $e) {
