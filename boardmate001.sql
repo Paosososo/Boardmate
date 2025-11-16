@@ -58,6 +58,47 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `finalize_payment` (
     WHERE booking_id = p_booking_id;
 END$$
 
+DROP PROCEDURE IF EXISTS cancel_booking$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `cancel_booking`(
+    IN p_booking_id INT,
+    IN p_user_id   INT
+)
+BEGIN
+    DECLARE v_status          VARCHAR(20);
+    DECLARE v_booking_user_id INT;
+
+    -- read current booking
+    SELECT status, user_id
+    INTO   v_status, v_booking_user_id
+    FROM   booking
+    WHERE  booking_id = p_booking_id;
+
+    -- not found
+    IF v_booking_user_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Booking not found';
+    END IF;
+
+    -- must own this booking
+    IF v_booking_user_id <> p_user_id THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Unauthorized: You can only cancel your own bookings';
+    END IF;
+
+    -- allow cancelling draft, unpaid, and paid
+    IF v_status NOT IN ('draft', 'unpaid', 'paid') THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Cannot cancel booking with this status';
+    END IF;
+
+    UPDATE booking
+    SET    status = 'cancelled'
+    WHERE  booking_id = p_booking_id;
+
+    SELECT 'Booking cancelled successfully' AS message;
+END$$
+
 CREATE DEFINER=`root`@`localhost` PROCEDURE `get_user_bookings` (IN `p_user_id` INT)   BEGIN
     SELECT b.booking_id,
            b.booking_date,

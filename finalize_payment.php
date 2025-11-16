@@ -16,16 +16,36 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require 'config.php';
 
-$booking_id = $_POST['booking_id'] ?? null;
-$method     = $_POST['method'] ?? 'qr';
-$amount     = $_POST['amount'] ?? 0;
+$booking_id  = isset($_POST['booking_id']) ? (int) $_POST['booking_id'] : null;
+$method      = $_POST['method'] ?? 'qr';
+$amount      = isset($_POST['amount']) ? (float) $_POST['amount'] : 0;
 $card_number = $_POST['card_number'] ?? null;
-$card_cvv = $_POST['card_cvv'] ?? null;
+$card_cvv    = $_POST['card_cvv'] ?? null;
 
 if (!$booking_id) {
     http_response_code(400);
     echo json_encode(["success" => false, "error" => "booking_id required"]);
     exit;
+}
+
+if ($method === 'card') {
+    $card_number = trim((string) $card_number);
+    $card_cvv = trim((string) $card_cvv);
+
+    $cardValid = preg_match('/^\d{16}$/', $card_number) === 1;
+    $cvvValid  = preg_match('/^\d{3}$/', $card_cvv) === 1;
+
+    if (!$cardValid || !$cvvValid) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Invalid card details'
+        ]);
+        exit;
+    }
+} else {
+    $card_number = null;
+    $card_cvv = null;
 }
 
 try {
