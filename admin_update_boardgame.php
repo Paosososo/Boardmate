@@ -23,6 +23,7 @@ $genre = trim($_POST['genre'] ?? '');
 $playersMin = isset($_POST['players_min']) ? (int)$_POST['players_min'] : 0;
 $playersMax = isset($_POST['players_max']) ? (int)$_POST['players_max'] : 0;
 $isActive = isset($_POST['is_active']) && (int)$_POST['is_active'] === 0 ? 0 : 1;
+$howToPlay = trim($_POST['how_to_play'] ?? '');
 
 if ($gameId <= 0) {
     respond(400, ["success" => false, "status" => "ERROR", "message" => "Invalid game ID"]);
@@ -36,9 +37,13 @@ if ($playersMin <= 0 || $playersMax <= 0 || $playersMin > $playersMax) {
     respond(400, ["success" => false, "status" => "ERROR", "message" => "Invalid player counts"]);
 }
 
+if ($howToPlay === '') {
+    $howToPlay = "Instructions coming soon.";
+}
+
 try {
-    $stmt = $pdo->prepare('UPDATE boardgame SET game_name = ?, genre = ?, players_min = ?, players_max = ?, is_active = ? WHERE game_id = ?');
-    $stmt->execute([$gameName, $genre, $playersMin, $playersMax, $isActive, $gameId]);
+    $stmt = $pdo->prepare('UPDATE boardgame SET game_name = ?, genre = ?, players_min = ?, players_max = ?, how_to_play = ?, is_active = ? WHERE game_id = ?');
+    $stmt->execute([$gameName, $genre, $playersMin, $playersMax, $howToPlay, $isActive, $gameId]);
     respond(200, ["success" => true, "status" => "OK", "message" => "Boardgame updated"]);
 } catch (PDOException $e) {
     respond(500, ["success" => false, "status" => "ERROR", "message" => "Failed to update boardgame"]);

@@ -23,7 +23,6 @@
       <button class="side-link" onclick="showPage('home')">Home</button>
       <button class="side-link" onclick="showPage('my-booking'); loadMyBookings();">Your Booking</button>
       <button id="adminDashboardLink" class="side-link hidden" onclick="openAdminDashboard()">Admin Dashboard</button>
-      <button class="side-link" onclick="showPage('favorites')">Favorite Game</button>
       <button class="side-link" onclick="showPage('settings')">Setting</button>
       <button class="side-link" onclick="showPage('profile')">Profile</button>
     </nav>
@@ -498,6 +497,9 @@
               <option value="0">Inactive</option>
             </select>
 
+            <label class="field-label">How to play</label>
+            <textarea name="how_to_play" class="input" rows="4" placeholder="Step-by-step instructions"></textarea>
+
             <button type="submit" class="btn btn-primary btn-full">Add boardgame</button>
           </form>
           <div id="adminBoardgamesList" class="admin-list">
@@ -507,16 +509,7 @@
       </div>
     </section>
 
-    <!-- FAVORITES -->
-    <section id="favorites" class="page">
-      <div class="page-header">
-        <h2>Favorite games</h2>
-        <p class="muted">Your saved boardgames</p>
-      </div>
-      <div class="section-spacing">
-        <p class="muted">No favorite yet.</p>
-      </div>
-    </section>
+  
 
     <!-- PROFILE -->
     <section id="profile" class="page">
@@ -525,6 +518,8 @@
       </div>
       <div class="section-spacing">
         <div class="avatar-placeholder"></div>
+      
+
 
         <div class="profile-block mt-16">
           <div class="profile-row">
@@ -554,6 +549,9 @@
 
         <button type="button" class="btn btn-light mt-24" onclick="showPage('home')">
           Back to home
+        </button>
+        <button type="button" class="btn btn-danger mt-12" onclick="deleteAccount()">
+          Delete account
         </button>
       </div>
     </section>

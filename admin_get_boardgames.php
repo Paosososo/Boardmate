@@ -18,7 +18,7 @@ if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
 }
 
 try {
-    $stmt = $pdo->query('SELECT game_id, game_name, genre, players_min, players_max, is_active FROM boardgame ORDER BY game_name');
+    $stmt = $pdo->query('SELECT game_id, game_name, genre, players_min, players_max, how_to_play, is_active FROM boardgame ORDER BY game_name');
     $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
     respond(200, ["success" => true, "status" => "OK", "boardgames" => $games]);
 } catch (PDOException $e) {

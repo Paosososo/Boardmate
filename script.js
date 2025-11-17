@@ -655,6 +655,10 @@ function renderAdminBoardgames(boardgames) {
           <option value="0"${!isActive ? " selected" : ""}>Inactive</option>
         </select>
       </div>
+      <div class="admin-card__form">
+        <label class="field-label">How to play</label>
+        <textarea class="input" rows="4" data-field="how_to_play">${escapeHTML(game.how_to_play || "")}</textarea>
+      </div>
       <div class="admin-card__actions">
         <button type="button" class="btn btn-light" data-action="delete">Delete</button>
         <button type="button" class="btn btn-primary" data-action="save">Save changes</button>
@@ -666,6 +670,7 @@ function renderAdminBoardgames(boardgames) {
     const minInput = card.querySelector('[data-field="min"]');
     const maxInput = card.querySelector('[data-field="max"]');
     const statusSelect = card.querySelector('[data-field="status"]');
+    const howInput = card.querySelector('[data-field="how_to_play"]');
     const saveBtn = card.querySelector('[data-action="save"]');
     const deleteBtn = card.querySelector('[data-action="delete"]');
 
@@ -677,7 +682,8 @@ function renderAdminBoardgames(boardgames) {
           genreInput.value,
           minInput.value,
           maxInput.value,
-          statusSelect.value
+          statusSelect.value,
+          howInput.value
         );
       });
     }
@@ -693,10 +699,11 @@ function renderAdminBoardgames(boardgames) {
   });
 }
 
-async function adminSaveBoardgame(gameId, name, genre, playersMin, playersMax, isActive) {
+async function adminSaveBoardgame(gameId, name, genre, playersMin, playersMax, isActive, howToPlay) {
   if (!ensureAdminAccess()) return;
   const trimmedName = name.trim();
   const trimmedGenre = genre.trim();
+  const trimmedHow = (howToPlay || "").trim();
   const min = parseInt(playersMin, 10);
   const max = parseInt(playersMax, 10);
   if (!trimmedName || !trimmedGenre) {
@@ -714,6 +721,7 @@ async function adminSaveBoardgame(gameId, name, genre, playersMin, playersMax, i
   formData.append("players_min", String(min));
   formData.append("players_max", String(max));
   formData.append("is_active", isActive);
+  formData.append("how_to_play", trimmedHow);
   try {
     await requestJSON("admin_update_boardgame.php", {
       method: "POST",
@@ -1256,10 +1264,12 @@ async function confirmPayment() {
   fd.append('amount', amount);
 
   if (method === 'card') {
-    const card = document.getElementById('summaryCardNumber')?.value?.trim();
-    const cvv = document.getElementById('summaryCardCvv')?.value?.trim();
-    if (!card || !cvv) {
-      showToast('Please enter card number and CVV', 'error');
+    const card = document.getElementById('summaryCardNumber')?.value?.trim() || '';
+    const cvv = document.getElementById('summaryCardCvv')?.value?.trim() || '';
+    const cardOk = /^\d{16}$/.test(card);
+    const cvvOk = /^\d{3}$/.test(cvv);
+    if (!cardOk || !cvvOk) {
+      showToast('Please enter a valid 16-digit card number and 3-digit CVV', 'error');
       return;
     }
     fd.append('card_number', card);
@@ -1432,7 +1442,11 @@ function createBookingCard(booking) {
     actionsHTML += `<button class="btn btn-primary" onclick="handlePayNow(${booking.booking_id}, ${amount})">Pay Now</button>`;
   }
   
-  if (booking.status === "draft" || booking.status === "unpaid") {
+  if (
+    booking.status === "draft" ||
+    booking.status === "unpaid" ||
+    booking.status === "paid"
+  ) {
     actionsHTML += `<button class="btn btn-danger" onclick="handleCancelBooking(${booking.booking_id})">Cancel</button>`;
   }
 
@@ -1542,10 +1556,12 @@ async function confirmModalPayment() {
   fd.append('amount', amount);
 
   if (method === 'card') {
-    const card = document.getElementById('modalCardNumber')?.value?.trim();
-    const cvv = document.getElementById('modalCardCvv')?.value?.trim();
-    if (!card || !cvv) {
-      showToast('Enter card number and CVV', 'error');
+    const card = document.getElementById('modalCardNumber')?.value?.trim() || '';
+    const cvv = document.getElementById('modalCardCvv')?.value?.trim() || '';
+    const cardOk = /^\d{16}$/.test(card);
+    const cvvOk = /^\d{3}$/.test(cvv);
+    if (!cardOk || !cvvOk) {
+      showToast('Please enter a valid 16-digit card number and 3-digit CVV', 'error');
       return;
     }
     fd.append('card_number', card);
@@ -1738,5 +1754,38 @@ async function openChangePassword() {
     showToast("Password changed successfully");
   } catch (err) {
     showToast(err.message || "Failed to change password", "error");
+  }
+}
+
+async function deleteAccount() {
+  if (!ensureProfileAccess()) return;
+
+  const confirmed = confirm("Are you sure you want to delete your account? This action cannot be undone.");
+  if (!confirmed) return;
+
+  const fd = new FormData();
+  fd.append("user_id", window.currentUserId);
+
+  try {
+    await requestJSON("delete_account.php", {
+      method: "POST",
+      body: fd,
+      expectSuccess: true
+    });
+
+    resetBookingState();
+    window.currentBookingId = null;
+    window.currentTotalAmount = 0;
+    window.currentUserId = null;
+    window.currentUserRole = null;
+    toggleAdminUI(false);
+    window.preselectedGameFromDetail = null;
+
+    showToast("Account deleted successfully");
+    showPage("auth");
+    showAuth("choice");
+  } catch (err) {
+    console.error("deleteAccount error:", err);
+    showToast(err.message || "Failed to delete account", "error");
   }
 }
