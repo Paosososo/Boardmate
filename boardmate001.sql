@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.2
+-- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost:3306
--- Generation Time: Nov 09, 2025 at 05:59 PM
--- Server version: 5.7.24
--- PHP Version: 8.3.1
+-- Host: localhost:8889
+-- Generation Time: Nov 17, 2025 at 02:19 PM
+-- Server version: 8.0.40
+-- PHP Version: 8.3.14
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -25,29 +25,7 @@ DELIMITER $$
 --
 -- Procedures
 --
-CREATE PROCEDURE create_booking(
-  IN p_user_id INT,
-  IN p_room_id INT,
-  IN p_booking_date DATE,
-  IN p_start TIME,
-  IN p_end TIME,
-  IN p_game_id INT
-) BEGIN
-   IF p_game_id IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'game_id required';
-    END IF;
-
-    INSERT INTO booking (user_id, room_id, game_id, booking_date, start_time, end_time, status)
-    VALUES (p_user_id, p_room_id, p_game_id, p_booking_date, p_start, p_end, 'unpaid');
-
-    SELECT LAST_INSERT_ID() AS booking_id;
-END$$
-
-CREATE DEFINER=`root`@`localhost` PROCEDURE `cancel_booking`(
-    IN p_booking_id INT,
-    IN p_user_id   INT
-)
-BEGIN
+CREATE DEFINER=`root`@`localhost` PROCEDURE `cancel_booking` (IN `p_booking_id` INT, IN `p_user_id` INT)   BEGIN
     DECLARE v_status          VARCHAR(20);
     DECLARE v_booking_user_id INT;
 
@@ -82,13 +60,18 @@ BEGIN
     SELECT 'Booking cancelled successfully' AS message;
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `finalize_payment` (
-  IN `p_booking_id` INT,
-  IN `p_method` VARCHAR(20),
-  IN `p_amount` DECIMAL(10,2),
-  IN `p_card_number` VARCHAR(32),
-  IN `p_card_cvv` VARCHAR(8)
-)   BEGIN
+CREATE DEFINER=`root`@`localhost` PROCEDURE `create_booking` (IN `p_user_id` INT, IN `p_room_id` INT, IN `p_booking_date` DATE, IN `p_start` TIME, IN `p_end` TIME, IN `p_game_id` INT)   BEGIN
+   IF p_game_id IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'game_id required';
+    END IF;
+
+    INSERT INTO booking (user_id, room_id, game_id, booking_date, start_time, end_time, status)
+    VALUES (p_user_id, p_room_id, p_game_id, p_booking_date, p_start, p_end, 'unpaid');
+
+    SELECT LAST_INSERT_ID() AS booking_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `finalize_payment` (IN `p_booking_id` INT, IN `p_method` VARCHAR(20), IN `p_amount` DECIMAL(10,2), IN `p_card_number` VARCHAR(32), IN `p_card_cvv` VARCHAR(8))   BEGIN
     INSERT INTO payment (booking_id, amount, method, status, card_number, card_cvv)
     VALUES (p_booking_id, p_amount, p_method, 'paid', p_card_number, p_card_cvv);
 
@@ -128,12 +111,12 @@ DELIMITER ;
 --
 
 CREATE TABLE `boardgame` (
-  `game_id` int(10) UNSIGNED NOT NULL,
-  `game_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `genre` varchar(60) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `players_min` tinyint(3) UNSIGNED DEFAULT '2',
-  `players_max` tinyint(3) UNSIGNED DEFAULT '6',
-  `how_to_play` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `game_id` int UNSIGNED NOT NULL,
+  `game_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `genre` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `players_min` tinyint UNSIGNED DEFAULT '2',
+  `players_max` tinyint UNSIGNED DEFAULT '6',
+  `how_to_play` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -155,24 +138,16 @@ INSERT INTO `boardgame` (`game_id`, `game_name`, `genre`, `players_min`, `player
 --
 
 CREATE TABLE `booking` (
-  `booking_id` int(10) UNSIGNED NOT NULL,
-  `user_id` int(10) UNSIGNED NOT NULL,
-  `room_id` int(10) UNSIGNED NOT NULL,
-  `game_id` int(10) UNSIGNED DEFAULT NULL,
+  `booking_id` int UNSIGNED NOT NULL,
+  `user_id` int UNSIGNED NOT NULL,
+  `room_id` int UNSIGNED NOT NULL,
+  `game_id` int UNSIGNED DEFAULT NULL,
   `booking_date` date NOT NULL,
   `start_time` time NOT NULL,
   `end_time` time NOT NULL,
-  `status` enum('draft','unpaid','paid','cancelled','checked_in') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `status` enum('draft','unpaid','paid','cancelled','checked_in') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `booking`
---
-
-INSERT INTO `booking` (`booking_id`, `user_id`, `room_id`, `game_id`, `booking_date`, `start_time`, `end_time`, `status`, `created_at`) VALUES
-(11, 10, 1, NULL, '2025-11-09', '10:00:00', '11:00:00', 'draft', '2025-11-10 00:46:12'),
-(12, 10, 2, 1, '2025-11-09', '10:00:00', '11:00:00', 'unpaid', '2025-11-10 00:58:43');
 
 --
 -- Triggers `booking`
@@ -196,16 +171,13 @@ CREATE TRIGGER `trg_booking_no_overlap` BEFORE INSERT ON `booking` FOR EACH ROW 
 END
 $$
 DELIMITER ;
-
 DELIMITER $$
-CREATE TRIGGER trg_booking_require_game
-BEFORE INSERT ON booking
-FOR EACH ROW
-BEGIN
+CREATE TRIGGER `trg_booking_require_game` BEFORE INSERT ON `booking` FOR EACH ROW BEGIN
   IF NEW.game_id IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'game_id required on insert';
   END IF;
-END$$
+END
+$$
 DELIMITER ;
 
 -- --------------------------------------------------------
@@ -215,10 +187,10 @@ DELIMITER ;
 --
 
 CREATE TABLE `feedback` (
-  `feedback_id` int(10) UNSIGNED NOT NULL,
-  `booking_id` int(10) UNSIGNED NOT NULL,
-  `rating` tinyint(3) UNSIGNED NOT NULL,
-  `comment` text COLLATE utf8mb4_unicode_ci,
+  `feedback_id` int UNSIGNED NOT NULL,
+  `booking_id` int UNSIGNED NOT NULL,
+  `rating` tinyint UNSIGNED NOT NULL,
+  `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -241,14 +213,14 @@ DELIMITER ;
 --
 
 CREATE TABLE `payment` (
-  `payment_id` int(10) UNSIGNED NOT NULL,
-  `booking_id` int(10) UNSIGNED NOT NULL,
+  `payment_id` int UNSIGNED NOT NULL,
+  `booking_id` int UNSIGNED NOT NULL,
   `payment_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `amount` decimal(10,2) NOT NULL,
-  `method` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'qr',
-  `card_number` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `card_cvv` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('pending','paid','failed','refunded') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending'
+  `method` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'qr',
+  `card_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `card_cvv` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','paid','failed','refunded') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -272,12 +244,12 @@ DELIMITER ;
 --
 
 CREATE TABLE `room` (
-  `room_id` int(10) UNSIGNED NOT NULL,
-  `room_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `room_id` int UNSIGNED NOT NULL,
+  `room_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `price_per_hour` decimal(10,2) NOT NULL,
-  `status` enum('available','unavailable','maintenance') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'available',
-  `capacity` smallint(5) UNSIGNED NOT NULL,
-  `time_slot` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT '10:00-20:00'
+  `status` enum('available','unavailable','maintenance') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'available',
+  `capacity` smallint UNSIGNED NOT NULL,
+  `time_slot` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '10:00-20:00'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -287,7 +259,7 @@ CREATE TABLE `room` (
 INSERT INTO `room` (`room_id`, `room_name`, `price_per_hour`, `status`, `capacity`, `time_slot`) VALUES
 (1, 'Small Room', 150.00, 'available', 4, '10:00-20:00'),
 (2, 'Medium Room', 220.00, 'available', 6, '10:00-20:00'),
-(3, 'Large Room', 350.00, 'available', 10, '10:00-20:00');
+(3, 'Large Room', 3500.00, 'available', 10, '10:00-20:00');
 
 -- --------------------------------------------------------
 
@@ -296,11 +268,11 @@ INSERT INTO `room` (`room_id`, `room_name`, `price_per_hour`, `status`, `capacit
 --
 
 CREATE TABLE `user` (
-  `user_id` int(10) UNSIGNED NOT NULL,
-  `full_name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `role` enum('admin','user') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'user',
+  `user_id` int UNSIGNED NOT NULL,
+  `full_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` enum('admin','user') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'user',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -311,7 +283,8 @@ CREATE TABLE `user` (
 INSERT INTO `user` (`user_id`, `full_name`, `email`, `password`, `role`, `created_at`) VALUES
 (1, 'Admin', 'admin@boardmate.com', 'admin1234', 'admin', '2025-11-09 14:54:23'),
 (2, 'Test User', 'test@example.com', '123456', 'user', '2025-11-09 14:54:23'),
-(10, 'test', 'test@gmail.com', '$2y$10$LeMB6V5lKiioMoUTAipIZOQdbOFzfo0aMRww9vNDQYF0A0ZxocdiG', 'user', '2025-11-09 23:26:23');
+(10, 'test', 'test@gmail.com', '$2y$10$LeMB6V5lKiioMoUTAipIZOQdbOFzfo0aMRww9vNDQYF0A0ZxocdiG', 'user', '2025-11-09 23:26:23'),
+(15, 'paopao', '122121@gmail.com', '$2y$10$gqG6BF19e8bpvyJEoVb2A.UAOxDUBBY506.ZFjNwaVlNUqmxwv57C', 'user', '2025-11-17 15:53:39');
 
 --
 -- Indexes for dumped tables
@@ -367,37 +340,37 @@ ALTER TABLE `user`
 -- AUTO_INCREMENT for table `boardgame`
 --
 ALTER TABLE `boardgame`
-  MODIFY `game_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `game_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `booking`
 --
 ALTER TABLE `booking`
-  MODIFY `booking_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `booking_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `feedback_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `feedback_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `payment`
 --
 ALTER TABLE `payment`
-  MODIFY `payment_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `payment_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `room`
 --
 ALTER TABLE `room`
-  MODIFY `room_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `room_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `user`
 --
 ALTER TABLE `user`
-  MODIFY `user_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `user_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- Constraints for dumped tables

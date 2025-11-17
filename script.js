@@ -1256,16 +1256,22 @@ async function confirmPayment() {
 
   // read selected method from payment summary radios
   const method = document.querySelector('input[name="payment_method"]:checked')?.value || 'qr';
-  const amount = window.currentTotalAmount || 0;
+  const amount = Number(window.currentTotalAmount || 0);
+  if (!amount || amount <= 0) {
+    showToast('Invalid payment amount', 'error');
+    return;
+  }
 
   const fd = new FormData();
   fd.append('booking_id', window.currentBookingId);
   fd.append('method', method);
-  fd.append('amount', amount);
+  fd.append('amount', String(amount));
 
   if (method === 'card') {
-    const card = document.getElementById('summaryCardNumber')?.value?.trim() || '';
-    const cvv = document.getElementById('summaryCardCvv')?.value?.trim() || '';
+    const rawCard = document.getElementById('summaryCardNumber')?.value || '';
+    const rawCvv = document.getElementById('summaryCardCvv')?.value || '';
+    const card = rawCard.replace(/\s+/g, '');
+    const cvv = rawCvv.replace(/\s+/g, '');
     const cardOk = /^\d{16}$/.test(card);
     const cvvOk = /^\d{3}$/.test(cvv);
     if (!cardOk || !cvvOk) {
@@ -1282,6 +1288,10 @@ async function confirmPayment() {
     if (window.currentUserId) {
       loadMyBookings();
     }
+    const summaryCardNumber = document.getElementById('summaryCardNumber');
+    const summaryCardCvv = document.getElementById('summaryCardCvv');
+    if (summaryCardNumber) summaryCardNumber.value = '';
+    if (summaryCardCvv) summaryCardCvv.value = '';
     const paidBookingId = window.currentBookingId;
     resetBookingState();
     window.preselectedGameFromDetail = null;
@@ -1543,9 +1553,13 @@ function toggleSummaryPaymentMethod(mode) {
 
 async function confirmModalPayment() {
   const bookingId = window._modalBookingId;
-  const amount = window._modalBookingAmount || 0;
+  const amount = Number(window._modalBookingAmount || 0);
   if (!bookingId) {
     showToast('No booking selected', 'error');
+    return;
+  }
+  if (!amount || amount <= 0) {
+    showToast('Invalid payment amount', 'error');
     return;
   }
 
@@ -1553,11 +1567,13 @@ async function confirmModalPayment() {
   const fd = new FormData();
   fd.append('booking_id', bookingId);
   fd.append('method', method);
-  fd.append('amount', amount);
+  fd.append('amount', String(amount));
 
   if (method === 'card') {
-    const card = document.getElementById('modalCardNumber')?.value?.trim() || '';
-    const cvv = document.getElementById('modalCardCvv')?.value?.trim() || '';
+    const rawCard = document.getElementById('modalCardNumber')?.value || '';
+    const rawCvv = document.getElementById('modalCardCvv')?.value || '';
+    const card = rawCard.replace(/\s+/g, '');
+    const cvv = rawCvv.replace(/\s+/g, '');
     const cardOk = /^\d{16}$/.test(card);
     const cvvOk = /^\d{3}$/.test(cvv);
     if (!cardOk || !cvvOk) {
@@ -1571,6 +1587,10 @@ async function confirmModalPayment() {
   try {
     await finalizePaymentRequest(fd);
     showToast('Payment successful!', 'success');
+    const modalCardNumber = document.getElementById('modalCardNumber');
+    const modalCardCvv = document.getElementById('modalCardCvv');
+    if (modalCardNumber) modalCardNumber.value = '';
+    if (modalCardCvv) modalCardCvv.value = '';
     closePaymentModal();
     loadMyBookings();
   } catch (err) {
