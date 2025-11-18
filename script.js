@@ -22,6 +22,18 @@ const customGameImages = {
   "uno party": "games/uno.png",
 };
 
+// รูปห้อง
+const roomImages = {
+  "small room": "./room/smallroom.png",
+  "medium room": "./room/mediumroom.png",
+  "large room": "./room/largeroom.png",
+};
+
+function getRoomImagePath(roomName = "") {
+  const normalized = roomName.trim().toLowerCase();
+  return roomImages[normalized] || "Hero.jpg";
+}
+
 // ฟังก์ชันแปลงชื่อเกมเป็นชื่อไฟล์รูป
 function getGameImagePath(gameName) {
   const normalized = gameName.trim().toLowerCase();
@@ -841,7 +853,7 @@ async function renderRooms() {
     rooms.forEach(r => {
       const card = document.createElement("div");
       card.className = "room-card";
-      
+    
       // เพิ่ม emoji ตามขนาดห้อง
       let roomEmoji = "🎲";
       if (r.capacity <= 4) roomEmoji = "🎯";
@@ -849,8 +861,10 @@ async function renderRooms() {
       else roomEmoji = "🏛️";
       const roomName = escapeHTML(r.room_name || "Room");
       const status = escapeHTML(r.status || "unknown");
+      const roomImg = getRoomImagePath(r.room_name || "");
       
       card.innerHTML = `
+        <div class="room-thumb" style="background-image: url('${roomImg}');"></div>
         <div class="room-head">
           <h3>${roomEmoji} ${roomName}</h3>
           <span class="status-pill ${r.status === "available" ? "status-pill--success" : "status-pill--danger"}">
@@ -1466,9 +1480,10 @@ function createBookingCard(booking) {
   const formattedAmount = amount
     ? `฿${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "";
+  const imgPath = getRoomImagePath(booking.room_name || "");
 
   card.innerHTML = `
-    <div class="booking-card__img"></div>
+    <div class="booking-card__img" style="background-image: url('${imgPath}');"></div>
     <div class="booking-card__body">
       <h3>${roomName}</h3>
       <p class="muted">${gameName}</p>
