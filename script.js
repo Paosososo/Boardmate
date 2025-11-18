@@ -585,14 +585,7 @@ function renderAdminRooms(rooms) {
         <label class="field-label">Price per hour (THB)</label>
         <input type="number" class="input" value="${priceValue.toFixed(2)}" min="0" step="10" data-field="price">
       </div>
-      <div class="admin-card__form">
-        <label class="field-label">Status</label>
-        <select class="input" data-field="status">
-          <option value="available"${status === "available" ? " selected" : ""}>Available</option>
-          <option value="unavailable"${status === "unavailable" ? " selected" : ""}>Unavailable</option>
-          <option value="maintenance"${status === "maintenance" ? " selected" : ""}>Maintenance</option>
-        </select>
-      </div>
+      
       <button type="button" class="btn btn-primary btn-full" data-action="save">Save changes</button>
     `;
 
@@ -685,13 +678,7 @@ function renderAdminBoardgames(boardgames) {
           <input type="number" class="input" value="${game.players_max || 4}" min="1" data-field="max">
         </div>
       </div>
-      <div class="admin-card__form">
-        <label class="field-label">Status</label>
-        <select class="input" data-field="status">
-          <option value="1"${isActive ? " selected" : ""}>Active</option>
-          <option value="0"${!isActive ? " selected" : ""}>Inactive</option>
-        </select>
-      </div>
+      
       <div class="admin-card__form">
         <label class="field-label">How to play</label>
         <textarea class="input" rows="4" data-field="how_to_play">${escapeHTML(game.how_to_play || "")}</textarea>
