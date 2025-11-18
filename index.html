@@ -203,6 +203,13 @@
         <h2>Choose time</h2>
         <p class="muted">Select date and time for your booking.</p>
       </div>
+      <div id="selectedRoomSummary" class="selected-room-summary hidden">
+        <div id="selectedRoomSummaryImage" class="room-thumb room-thumb--wide"></div>
+        <div class="selected-room-summary__info">
+          <h3 id="selectedRoomSummaryName">Room</h3>
+          <p class="muted" id="selectedRoomSummaryDetail">-</p>
+        </div>
+      </div>
       <div class="section-spacing">
         <label class="field-label">Date</label>
         <input type="date" id="bookingDate" class="input">
@@ -564,7 +571,7 @@
       <div class="section-spacing">
         <label class="toggle-row">
           <span>Dark mode</span>
-          <input type="checkbox">
+          <input type="checkbox" id="darkModeToggle">
         </label>
         <label class="toggle-row">
           <span>Notification</span>

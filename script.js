@@ -17,6 +17,29 @@ let currentGameDetail = null;
 window.preselectedGameFromDetail = null;
 window.currentUserRole = null;
 
+// ============ THEME ============ 
+const THEME_KEY = "boardmate_theme";
+
+function applyTheme(theme) {
+  const mode = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", mode);
+  const toggle = document.getElementById("darkModeToggle");
+  if (toggle) toggle.checked = mode === "dark";
+}
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || "light";
+  applyTheme(saved);
+  const toggle = document.getElementById("darkModeToggle");
+  if (toggle) {
+    toggle.addEventListener("change", (e) => {
+      const mode = e.target.checked ? "dark" : "light";
+      localStorage.setItem(THEME_KEY, mode);
+      applyTheme(mode);
+    });
+  }
+}
+
 // แมพชื่อเกมที่ต้องใช้ไฟล์เฉพาะ (เช่น .png)
 const customGameImages = {
   "uno party": "games/uno.png",
@@ -102,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
   showPage("auth");
   showAuth("choice");
   toggleAdminUI(false);
+  initTheme();
 
   // render ส่วนต่างๆ
   renderRecommended();
@@ -195,6 +219,7 @@ function showPage(id) {
   }
 
   if (id === "time-select" && typeof loadTimeSlots === "function") {
+    updateSelectedRoomSummary();
     loadTimeSlots();
   }
 
@@ -895,7 +920,31 @@ function selectRoomFromDB(roomId, price, name) {
   restorePreselectedGameIfAvailable();
   selectedRoom = { id: roomId, price: price, name: name };
   showToast(`Selected ${name}! 🎯`, "success");
+  updateSelectedRoomSummary();
   showPage("time-select");
+}
+
+function updateSelectedRoomSummary() {
+  const wrap = document.getElementById("selectedRoomSummary");
+  if (!wrap) return;
+
+  if (!selectedRoom) {
+    wrap.classList.add("hidden");
+    return;
+  }
+
+  const imgEl = document.getElementById("selectedRoomSummaryImage");
+  const nameEl = document.getElementById("selectedRoomSummaryName");
+  const detailEl = document.getElementById("selectedRoomSummaryDetail");
+
+  if (imgEl) {
+    const imgPath = getRoomImagePath(selectedRoom.name || "");
+    imgEl.style.backgroundImage = `url('${imgPath}')`;
+  }
+  if (nameEl) nameEl.textContent = selectedRoom.name || "Room";
+  if (detailEl) detailEl.textContent = selectedRoom.price ? `💰 ${selectedRoom.price} THB / hr` : "-";
+
+  wrap.classList.remove("hidden");
 }
 
 // =================== GAMES (ดึงจาก PHP) ===================
